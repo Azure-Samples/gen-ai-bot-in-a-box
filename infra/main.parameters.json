@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": {
+      "value": "${AZURE_RG_NAME}"
+    },
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "aiServicesName": {
+      "value": "${AZURE_AISERVICES_NAME}"
+    },
+    "deploySharedPrivateLinks": {
+      "value": "${AZURE_DEPLOY_SHARED_PRIVATE_LINKS}"
+    },
+    "myPrincipalId": {
+      "value": "${PRINCIPAL_ID}"
+    },
+    "tags": {
+      "value": {
+        "Owner": "AI Team",
+        "Project": "GPTBot",
+        "Environment": "Dev",
+        "Toolkit": "Bicep"
+      }
+    }
+  }
+}

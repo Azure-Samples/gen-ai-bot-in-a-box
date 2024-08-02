@@ -1,0 +1,12 @@
+.azure
+
+.venv
+.conda
+.env
+__pycache__
+
+node_modules
+
+bin
+obj
+appsettings.json
