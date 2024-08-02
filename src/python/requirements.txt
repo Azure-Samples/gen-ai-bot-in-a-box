@@ -17,7 +17,7 @@ botbuilder-integration-aiohttp==4.15.0
 botbuilder-schema==4.15.0
 botframework-connector==4.15.0
 botframework-streaming==4.15.0
-certifi==2024.6.2
+certifi==2024.7.4
 cffi==1.16.0
 chardet==5.2.0
 charset-normalizer==3.3.2
