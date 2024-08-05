@@ -6,6 +6,7 @@ param publicNetworkAccess string
 param openAIPrivateDnsZoneId string
 param cognitiveServicesPrivateDnsZoneId string
 param grantAccessTo array
+param allowedIpAddresses array = []
 
 resource aiServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   name: aiServicesName
@@ -20,7 +21,15 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   properties: {
     disableLocalAuth: true
     customSubDomainName: aiServicesName
-    publicNetworkAccess: publicNetworkAccess
+    publicNetworkAccess: !empty(allowedIpAddresses) ? 'Enabled' : publicNetworkAccess
+    networkAcls: {
+      defaultAction: 'Deny'
+      ipRules: [
+        for ipAddress in allowedIpAddresses: {
+          value: ipAddress
+        }
+      ]
+    }
   }
   tags: tags
 }
@@ -91,16 +100,16 @@ resource cognitiveServicesPrivateEndpoint 'Microsoft.Network/privateEndpoints@20
   }
 }
 
-resource cognitiveServicesOpenAIContributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-  name: 'a001fd3d-188f-4b5d-821b-7da978bf7442'
+resource cognitiveServicesContributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: '25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'
 }
 
 resource writerAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for principal in grantAccessTo: if (!empty(principal.id)) {
-    name: guid(principal.id, aiServices.id, cognitiveServicesOpenAIContributor.id)
+    name: guid(principal.id, aiServices.id, cognitiveServicesContributor.id)
     scope: aiServices
     properties: {
-      roleDefinitionId: cognitiveServicesOpenAIContributor.id
+      roleDefinitionId: cognitiveServicesContributor.id
       principalId: principal.id
       principalType: principal.type
     }
@@ -109,4 +118,5 @@ resource writerAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
 
 output aiServicesID string = aiServices.id
 output aiServicesName string = aiServices.name
+output aiServicesEndpoint string = aiServices.properties.endpoint
 output aiServicesPrincipalId string = aiServices.identity.principalId

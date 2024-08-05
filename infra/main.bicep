@@ -5,6 +5,9 @@ targetScope = 'subscription'
 param environmentName string
 @description('Principal ID to grant access to the AI services. Leave empty to skip')
 param myPrincipalId string = ''
+@description('IP addresses to grant access to the AI services. Leave empty to skip')
+param allowedIpAddresses string = ''
+var allowedIpAddressesArray = split(allowedIpAddresses, ',')
 @description('Resource group name for the AI services. Defauts to rg-<environmentName>')
 param resourceGroupName string = ''
 @description('Resource group name for the DNS configurations. Defaults to rg-dns')
@@ -52,7 +55,7 @@ param appPlanName string = ''
 param appName string = ''
 
 @description('Gen AI model name and version to deploy')
-@allowed(['gpt-4,1106-Preview', 'gpt-4,0125-Preview'])
+@allowed(['gpt-4,1106-Preview', 'gpt-4,0125-Preview', 'gpt-4o,2024-05-13'])
 param model string
 @description('Language and version of the app to be deployed')
 @allowed(['python|3.10', 'node|14', 'dotnetcore|8.0'])
@@ -174,6 +177,7 @@ module m_aiServices 'modules/aistudio/aiServices.bicep' = {
         type: 'ServicePrincipal'
       }
     ]
+    allowedIpAddresses: allowedIpAddressesArray
     tags: tags
   }
 }
@@ -316,6 +320,7 @@ module m_bot 'modules/botservice.bicep' = {
 output AZURE_TENANT_ID string = tenant().tenantId
 output AZURE_RESOURCE_GROUP_ID string = resourceGroup.id
 output AZURE_RESOURCE_GROUP_NAME string = resourceGroup.name
+output AI_SERVICES_ENDPOINT string = m_aiServices.outputs.aiServicesEndpoint
 output APP_NAME string = m_app.outputs.appName
 output APP_HOSTNAME string = m_app.outputs.hostName
 output BOT_NAME string = m_bot.outputs.name

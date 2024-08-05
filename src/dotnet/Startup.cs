@@ -1,8 +1,8 @@
-﻿// Generated with EchoBot .NET Template version v4.22.0
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 using System;
 using Azure.AI.OpenAI;
-using Azure.Core;
 using Azure.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -13,6 +13,7 @@ using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Services;
 
 namespace GenAIBot
 {
@@ -32,7 +33,7 @@ namespace GenAIBot
                 .AddJsonFile("appsettings.json", optional: true)
                 .AddEnvironmentVariables()
                 .Build();
-            services.AddSingleton(configuration); 
+            services.AddSingleton(configuration);
 
             services.AddHttpClient().AddControllers().AddNewtonsoftJson(options =>
             {
@@ -55,7 +56,7 @@ namespace GenAIBot
                 credential: credential
             );
             services.AddSingleton(aoaiClient);
-            
+
             Phi phiClient = new Phi(
                 configuration.GetValue<string>("AZURE_AI_PHI_DEPLOYMENT_ENDPOINT"),
                 configuration.GetValue<string>("AZURE_AI_PHI_DEPLOYMENT_KEY")
@@ -90,7 +91,6 @@ namespace GenAIBot
 
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
 
-            // In Dotnet:
             switch (configuration.GetValue<string>("GEN_AI_IMPLEMENTATION"))
             {
                 case "chat-completions":
@@ -109,6 +109,10 @@ namespace GenAIBot
                 default:
                     throw new Exception("Invalid engine type");
             }
+            services.AddHttpClient<DirectLineService>();
+            if (configuration.GetValue<string>("AZURE_SPEECH_API_ENDPOINT") != null)
+                services.AddSingleton(new SpeechService(new System.Net.Http.HttpClient(), configuration.GetValue<string>("AZURE_SPEECH_API_ENDPOINT"), configuration.GetValue<string>("AZURE_SPEECH_REGION"), credential));
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -5,18 +5,18 @@ using Microsoft.Bot.Builder;
 using Microsoft.Bot.Schema;
 using Microsoft.BotBuilderSamples;
 using Microsoft.Extensions.Configuration;
+using OpenAI.Chat;
 
 namespace GenAIBot.Bots
 {
-    public class PhiBot : StateManagementBot
+    public class TemplateBot : StateManagementBot
     {
-        private readonly Phi _phiClient;
         private readonly string _instructions;
-        public PhiBot(IConfiguration config, ConversationState conversationState, UserState userState, Phi phiClient)
+        public TemplateBot(IConfiguration config, ConversationState conversationState, UserState userState)
             : base(conversationState, userState)
         {
-            _phiClient = phiClient;
             _instructions = config["LLM_INSTRUCTIONS"];
+            // Inject dependencies here
         }
 
         // Modify onMembersAdded as needed
@@ -26,7 +26,7 @@ namespace GenAIBot.Bots
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text("Hello and welcome to the Phi Bot Dotnet!"), cancellationToken);
+                    await turnContext.SendActivityAsync(MessageFactory.Text("Hello and welcome to the Template Bot Dotnet!"), cancellationToken);
                 }
             }
         }
@@ -42,13 +42,14 @@ namespace GenAIBot.Bots
                         new() { Role = "system", Message = _instructions }
                     }
                 });
+
+            // Catch any special messages here
             
             // Add user message to history
             conversationData.AddTurn("user", turnContext.Activity.Text);
 
             // Run logic to obtain response here
-            var completion = await _phiClient.CreateCompletion(messages: conversationData.toMessages());
-            var response = completion["choices"][0]["message"]["content"].ToString();
+            var response = "Hello, world!";
 
             // Add assistant message to history
             conversationData.AddTurn("assistant", response);

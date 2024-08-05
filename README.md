@@ -17,13 +17,15 @@ This sample provides a template and guidance on how to deploy a virtual assistan
 
 The following implementations are supported:
 
-| Language | Version | Chat Completions | Assistants API | Semantic Kernel |
-|----------|---------|------------------|----------------|-----------------|
-| Python   | 3.10    | ✔                | ✔              | ✔               |
-| C#       | 8.0     | ✔                | ✔              | ✔               |
-| NodeJS   | 21.0    | ✔                | ✔              | ✔               |
+| Language | Version | Chat Completions | Assistants API | Semantic Kernel | Phi-3 |
+|----------|---------|------------------|----------------|-----------------|-------|
+| Python   | 3.10    | ✔                | ✔              | ✔               | ✔     |
+| C#       | 8.0     | ✔                | ✔              | ✗               | ✔     |
+| NodeJS   | 21.0    | ✔                | ✔              | ✗               | ✔     |
 
-  
+> Notes: The Phi model implementation requires the deployment of an AI Project and Serverless Endpoint. It does not support function calling.
+> Using Python with Bot Framework requires a Single Tenant Application.
+
 ## Thinking Outside of the Box
 
 The solution can be adapted for your own use cases:
@@ -66,6 +68,21 @@ azd up
 You will be prompted for an environment name, a subscription, location and a few other customization parameters. Make sure to select the language you chose on the previous step, or deployment will fail.
 
 ## Run the Solution
+
+### Additional Step if using Assistants API implementation
+
+Set up an Azure OpenAI Assistant. You may use the scripts provided to deploy an initial Assistant and bind it to your application.
+
+On Windows:
+```pwsh
+.\scripts\createAssistant.ps1
+```
+
+On Linux/Mac:
+```sh
+sh ./scripts/createAssistant.sh
+```
+
 
 Once the bot is deployed, you may send messages to it through the Web Chat, or by running locally.
 

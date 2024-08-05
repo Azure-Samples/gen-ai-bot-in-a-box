@@ -136,6 +136,10 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
           value: 'Answer the questions as accurately as possible using the provided functions.'
         }
         {
+          name: 'APP_HOSTNAME'
+          value: '${appServiceName}.azurewebsites.net'
+        }
+        {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
           value: startsWith(linuxFxVersion,'dotnet') ? 'false' : 'true'
         }

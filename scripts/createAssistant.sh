@@ -9,10 +9,10 @@ done <<EOF
 $(azd env get-values)
 EOF
 
-AOAI_API_KEY=$(az cognitiveservices account keys list -n $AI_SERVICES_NAME -g $AZURE_RESOURCE_GROUP_NAME | jq -r .key1)
+OAUTH_TOKEN=$(az account get-access-token --scope https://cognitiveservices.azure.com/.default --query accessToken -o tsv)
 AOAI_ASSISTANT_NAME="assistant_in_a_box"
 ASSISTANT_ID=$(curl "$AI_SERVICES_ENDPOINT/openai/assistants?api-version=2024-02-15-preview" \
-  -H "api-key: $AOAI_API_KEY"|\
+  -H "Authorization: Bearer $OAUTH_TOKEN" | \
   jq -r '[.data[] | select( .name == "'$AOAI_ASSISTANT_NAME'")][0] | .id') 
 if [ "$ASSISTANT_ID" == "null" ]; then    
     ASSISTANT_ID=
@@ -29,14 +29,16 @@ echo '{
     "metadata":{}
   }' > tmp.json
 curl "$AI_SERVICES_ENDPOINT/openai/assistants$ASSISTANT_ID?api-version=2024-02-15-preview" \
-  -H "api-key: $AOAI_API_KEY" \
+  -H "Authorization: Bearer $OAUTH_TOKEN" \
   -H 'content-type: application/json' \
   -d @tmp.json \
   --fail-with-body
 rm tmp.json
 
 ASSISTANT_ID=$(curl "$AI_SERVICES_ENDPOINT/openai/assistants?api-version=2024-02-15-preview" \
-  -H "api-key: $AOAI_API_KEY"|\
+  -H "Authorization: Bearer $OAUTH_TOKEN"|\
   jq -r '[.data[] | select( .name == "'$AOAI_ASSISTANT_NAME'")][0] | .id')
 
 az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $APP_NAME --settings AOAI_ASSISTANT_ID=$ASSISTANT_ID APP_URL=$APP_HOSTNAME
+
+azd env set AZURE_ASSISTANT_ID $ASSISTANT_ID

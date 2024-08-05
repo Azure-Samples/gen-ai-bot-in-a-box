@@ -5,9 +5,8 @@ import os
 import sys
 import traceback
 from http import HTTPStatus
-
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-
+from azure.cosmos.cosmos_client import CosmosClient
 from aiohttp import web
 from aiohttp.web import Request, Response, json_response
 from botbuilder.azure import (
@@ -31,13 +30,12 @@ from dotenv import load_dotenv
 from bots import AssistantBot, ChatCompletionBot, PhiBot, SemanticKernelBot
 from config import DefaultConfig
 
-
 load_dotenv()
-CONFIG = DefaultConfig()
+config = DefaultConfig()
 
 # Create adapter.
 # See https://aka.ms/about-bot-adapter to learn more about how bots work.
-ADAPTER = CloudAdapter(ConfigurationBotFrameworkAuthentication(CONFIG))
+adapter = CloudAdapter(ConfigurationBotFrameworkAuthentication(config))
 
 # Catch-all for errors.
 async def on_error(context: TurnContext, error: Exception):
@@ -52,38 +50,17 @@ async def on_error(context: TurnContext, error: Exception):
     await context.send_activity(
         "To continue to run this bot, please fix the bot source code."
     )
-    # Send a trace activity if we're talking to the Bot Framework Emulator
-    if CONFIG.DEBUG:
-        # Create a trace activity that contains the error object
-        await context.send_activity(str(error))
-        # Send a trace activity, which will be displayed in Bot Framework Emulator
-
-    # Clear out state
-    await CONVERSATION_STATE.delete(context)
+    await context.send_activity(str(error))
 
 
 # Set the error handler on the Adapter.
-# In this case, we want an unbound method, so MethodType is not needed.
-ADAPTER.on_turn_error = on_error
+adapter.on_turn_error = on_error
 
-# Create MemoryStorage and state
+# Set up service authentication
+credential = DefaultAzureCredential()
 
-if CONFIG.COSMOSDB_ENDPOINT:
-    MEMORY = CosmosDbPartitionedStorage(
-        CosmosDbPartitionedConfig(
-            cosmos_db_endpoint=CONFIG.COSMOSDB_ENDPOINT,
-            # auth_key=CONFIG.COSMOSDB_KEY,
-            database_id=CONFIG.COSMOSDB_DATABASE_ID,
-            container_id=CONFIG.COSMOSDB_CONTAINER_ID,
-        )
-    )
-else:
-    MEMORY = MemoryStorage()
-USER_STATE = UserState(MEMORY)
-CONVERSATION_STATE = ConversationState(MEMORY)
-
-# Dependency Injection
-AOAI_CLIENT = AzureOpenAI(
+# Azure AI Services
+aoai_client = AzureOpenAI(
     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
     azure_endpoint=os.getenv("AZURE_OPENAI_API_ENDPOINT"),
     azure_ad_token_provider=get_bearer_token_provider(
@@ -92,34 +69,52 @@ AOAI_CLIENT = AzureOpenAI(
     )
 )
 
-# Create Bot
-GEN_AI_IMPLEMENTATION = os.getenv("GEN_AI_IMPLEMENTATION")
-if GEN_AI_IMPLEMENTATION == "chat-completions":
-    BOT = ChatCompletionBot(CONVERSATION_STATE, USER_STATE, AOAI_CLIENT)
-elif GEN_AI_IMPLEMENTATION == "assistant":
-    BOT = AssistantBot(CONVERSATION_STATE, USER_STATE, AOAI_CLIENT)
-elif GEN_AI_IMPLEMENTATION == "semantic-kernel":
-    BOT = SemanticKernelBot(CONVERSATION_STATE, USER_STATE, AOAI_CLIENT)
-elif GEN_AI_IMPLEMENTATION == "langchain":
+# Conversation history storage
+storage = None
+if os.getenv("COSMOSDB_ENDPOINT"):
+    storage = CosmosDbPartitionedStorage(
+        CosmosDbPartitionedConfig(
+            database_id=os.getenv("COSMOSDB_DATABASE_ID"),
+            container_id=os.getenv("COSMOSDB_CONTAINER_ID"),
+        )
+    )
+    storage.client = CosmosClient(os.getenv("COSMOSDB_ENDPOINT"), credential)
+else:
+    storage = MemoryStorage()
+
+# Create conversation and user state
+user_state = UserState(storage)
+conversation_state = ConversationState(storage)
+
+# Create the bot
+bot = None
+engine = os.getenv("GEN_AI_IMPLEMENTATION")
+if engine == "chat-completions":
+    bot = ChatCompletionBot(conversation_state, user_state, aoai_client)
+elif engine == "assistant":
+    bot = AssistantBot(conversation_state, user_state, aoai_client)
+elif engine == "semantic-kernel":
+    bot = SemanticKernelBot(conversation_state, user_state, aoai_client)
+elif engine == "langchain":
     raise ValueError("Langchain is not supported in this version.")
-elif GEN_AI_IMPLEMENTATION == "phi":
+elif engine == "phi":
     phi_client = Phi(deployment_endpoint=os.getenv("AZURE_AI_PHI_DEPLOYMENT_ENDPOINT"), deployment_key=os.getenv("AZURE_AI_PHI_DEPLOYMENT_KEY"))
-    BOT = PhiBot(CONVERSATION_STATE, USER_STATE, phi_client)
+    bot = PhiBot(conversation_state, user_state, phi_client)
 else:
     raise ValueError("Invalid engine type")
 
 # Listen for incoming requests on /api/messages.
 async def messages(req: Request) -> Response:
-    # Main bot message handler.
+    # Parse incoming request
     if "application/json" in req.headers["Content-Type"]:
         body = await req.json()
     else:
         return Response(status=HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
-
     activity = Activity().deserialize(body)
     auth_header = req.headers["Authorization"] if "Authorization" in req.headers else ""
 
-    response = await ADAPTER.process_activity(auth_header, activity, BOT.on_turn)
+    # Route received a request to adapter for processing
+    response = await adapter.process_activity(auth_header, activity, bot.on_turn)
     if response:
         return json_response(data=response.body, status=response.status)
     return Response(status=HTTPStatus.OK)
@@ -130,6 +125,6 @@ app.router.add_post("/api/messages", messages)
 
 if __name__ == "__main__":
     try:
-        web.run_app(app, port=CONFIG.PORT)
+        web.run_app(app, port=3978)
     except Exception as error:
         raise error

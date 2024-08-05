@@ -2,17 +2,9 @@
 // Licensed under the MIT License.
 
 const path = require('path');
-
 const dotenv = require('dotenv');
-// Import required bot configuration.
-const ENV_FILE = path.join(__dirname, '.env');
-dotenv.config({ path: ENV_FILE });
-
 const restify = require('restify');
-
-
-// Import required bot services.
-// See https://aka.ms/bot-services to learn more about the different parts of a bot.
+const { DefaultAzureCredential } = require('@azure/identity')
 const {
     CloudAdapter,
     ConfigurationBotFrameworkAuthentication,
@@ -24,14 +16,15 @@ const {
 const { AzureOpenAI } = require('openai')
 const { Phi } = require('./services/phi')
 
+const ENV_FILE = path.join(__dirname, '.env');
+dotenv.config({ path: ENV_FILE });
+require('dotenv').config()
 
-// This bot's main dialog.
 const { AssistantBot } = require('./bots/assistant_bot');
 const { ChatCompletionBot } = require('./bots/chat_completion_bot');
 const { PhiBot } = require('./bots/phi_bot');
 const { CosmosDbPartitionedStorage } = require('botbuilder-azure');
 
-require('dotenv').config()
 
 // Create HTTP server
 const server = restify.createServer();
@@ -61,33 +54,29 @@ const onTurnErrorHandler = async (context, error) => {
     // Send a message to the user
     await context.sendActivity('The bot encountered an error or bug.');
     await context.sendActivity('To continue to run this bot, please fix the bot source code.');
-
-    // Send a more detailed message to the user in debug mode
-    if (process.env.DEBUG === 'true') {
-        await context.sendActivity(error);
-    }
+    await context.sendActivity(error);
 
 };
 
-// Set the onTurnError for the singleton CloudAdapter.
+// Set the error handler on the Adapter.
 adapter.onTurnError = onTurnErrorHandler;
 
+// Set up service authentication
+const credential = new DefaultAzureCredential()
 
-// Dependency Injection
+// Azure AI Services
 const aoaiClient = new AzureOpenAI({
     baseURL: process.env.AZURE_OPENAI_API_ENDPOINT,
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    azureADTokenProvider: () => credential.getToken('https://cognitiveservices.azure.com/.default').then(result => result.token),
     apiVersion: process.env.AZURE_OPENAI_API_VERSION,
 });
 
-
-// Define state store for your bot.
-
+// Conversation history storage
 let storage
 if (process.env.AZURE_COSMOSDB_ENDPOINT) {
     storage = new CosmosDbPartitionedStorage({
         cosmosDbEndpoint: process.env.AZURE_COSMOSDB_ENDPOINT,
-        authKey: process.env.AZURE_COSMOSDB_KEY,
+        tokenCredential: credential,
         databaseId: process.env.AZURE_COSMOSDB_DATABASE_ID,
         containerId: process.env.AZURE_COSMOSDB_CONTAINER_ID,
     });
@@ -95,20 +84,23 @@ if (process.env.AZURE_COSMOSDB_ENDPOINT) {
     storage = new MemoryStorage();
 }
 
-// Create conversation and user state with in-memory storage provider.
+// Create conversation and user state
 const conversationState = new ConversationState(storage);
 const userState = new UserState(storage);
 
 // Create the bot.
 let bot
-const ENGINE = "ASSISTANT"
-if (ENGINE == "CHAT_COMPLETIONS") {
+const engine = process.env.GEN_AI_IMPLEMENTATION
+if (engine == "chat-completions") {
     bot = new ChatCompletionBot(conversationState, userState, aoaiClient)
 }
-else if (ENGINE == "ASSISTANT") {
+else if (engine == "assistant") {
     bot = new AssistantBot(conversationState, userState, aoaiClient)
 }
-else if (ENGINE == "PHI") {
+else if (engine == "semantic-kernel") {
+    throw new Error("Semantic Kernel is not supported in NodeJS.")
+}
+else if (engine == "PHI") {
     phi_client = new Phi(process.env.AZURE_AI_PHI_DEPLOYMENT_ENDPOINT, process.env.AZURE_AI_PHI_DEPLOYMENT_KEY)
     bot = new PhiBot(conversationState, userState, phi_client)
 }
@@ -116,7 +108,7 @@ else {
     throw "Invalid engine type"
 }
 
-// Listen for incoming requests.
+// Listen for incoming requests on /api/messages.
 server.post('/api/messages', async (req, res) => {
     // Route received a request to adapter for processing
     await adapter.process(req, res, (context) => bot.run(context));
@@ -130,14 +122,4 @@ server.on('upgrade', async (req, socket, head) => {
     streamingAdapter.onTurnError = onTurnErrorHandler;
 
     await streamingAdapter.process(req, socket, head, (context) => bot.run(context));
-});
-
-// Error handler middleware
-server.on('InternalServer', function(req, res, err, callback) {
-    // before the response is sent, this listener will be invoked, allowing
-    // opportunities to do metrics capturing or logging.
-    myMetrics.capture(err);
-    // invoke the callback to complete your work, and the server will send out
-    // a response.
-    return callback();
 });

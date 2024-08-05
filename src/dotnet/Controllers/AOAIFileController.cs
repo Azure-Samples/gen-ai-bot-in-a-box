@@ -20,10 +20,9 @@ namespace TokenSampleApi.Controllers
             _assistantClient = aoaiClient.GetFileClient();
         }
 
-        // Endpoint for generating a Direct Line token bound to a random user ID
         [HttpGet]
-        [Route("/openai/files/{fileId}/content")]
-        public async Task<IActionResult> Get(string fileId)
+        [Route("/api/files/{fileId}")]
+        public async Task<IActionResult> GetFileContent(string fileId)
         {
             try
             {
@@ -34,7 +33,6 @@ namespace TokenSampleApi.Controllers
             {
                 return BadRequest(new { message = invalidOpException.Message });
             }
-
         }
     }
 }

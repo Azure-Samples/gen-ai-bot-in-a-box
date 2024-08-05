@@ -4,18 +4,18 @@
 const { ConversationData, ConversationTurn } = require('../data_models/conversation_data');
 const { StateManagementBot } = require('./state_management_bot');
 
-class PhiBot extends StateManagementBot {
+class TemplateBot extends StateManagementBot {
 
-    constructor(conversationState, userState, phiClient) {
+    constructor(conversationState, userState) {
         super(conversationState, userState);
-        this._phiClient = phiClient;
+        // Inject dependencies here
 
         // Modify onMembersAdded as needed
         this.onMembersAdded(async (context, next) => {
             const membersAdded = context.activity.membersAdded;
             for (let member of membersAdded) {
                 if (member.id !== context.activity.recipient.id) {
-                    await context.sendActivity("Hello and welcome to the Phi Bot NodeJS!");
+                    await context.sendActivity("Hello and welcome to the Template Bot NodeJS!");
                 }
             }
             await next();
@@ -25,14 +25,16 @@ class PhiBot extends StateManagementBot {
             // Load conversation state
             let conversationData = await this.conversationDataAccessor.get(context, new ConversationData([]));
 
+            // Catch any special messages here
+
             // Add user message to history
             conversationData.history.push(new ConversationTurn('user', context.activity.text));
             if (conversationData.history.length >= conversationData.max_turns) {
                 conversationData.history.splice(1, 1);
             }
 
-            let completion = await this._phiClient.createCompletion(conversationData.history);
-            let response = completion.choices[0].message.content;
+            // Run logic to obtain response here
+            let response = "Hello, world!";
 
             // Add assistant message to history
             conversationData.history.push(new ConversationTurn('assistant', response));
@@ -41,11 +43,11 @@ class PhiBot extends StateManagementBot {
             }
 
             // Respond back to user
-            await context.sendActivity(response);
+            await context.sendActivity(currentMessage);
             next();
         });
     }
 
 }
 
-module.exports.PhiBot = PhiBot;
+module.exports.TemplateBot = TemplateBot;

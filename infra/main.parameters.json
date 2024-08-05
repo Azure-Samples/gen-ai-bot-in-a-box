@@ -20,6 +20,9 @@
     "myPrincipalId": {
       "value": "${PRINCIPAL_ID}"
     },
+    "allowedIpAddresses": {
+      "value": "${ALLOWED_IP_ADDRESSES}"
+    },
     "tags": {
       "value": {
         "Owner": "AI Team",
