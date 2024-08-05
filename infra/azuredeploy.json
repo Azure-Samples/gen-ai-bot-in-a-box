@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.29.47.4906",
-      "templateHash": "9877911210315383089"
+      "templateHash": "8076190926193648296"
     }
   },
   "parameters": {
@@ -759,7 +759,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "17392412431227064676"
+              "templateHash": "8776815050039479179"
             }
           },
           "parameters": {
@@ -922,9 +922,9 @@
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
               "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', parameters('aiServicesName'))]",
-              "name": "[guid(parameters('grantAccessTo')[copyIndex()].id, resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), resourceId('Microsoft.Authorization/roleDefinitions', '25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'))]",
+              "name": "[guid(parameters('grantAccessTo')[copyIndex()].id, resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), resourceId('Microsoft.Authorization/roleDefinitions', 'a001fd3d-188f-4b5d-821b-7da978bf7442'))]",
               "properties": {
-                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', '25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68')]",
+                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', 'a001fd3d-188f-4b5d-821b-7da978bf7442')]",
                 "principalId": "[parameters('grantAccessTo')[copyIndex()].id]",
                 "principalType": "[parameters('grantAccessTo')[copyIndex()].type]"
               },

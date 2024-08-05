@@ -100,16 +100,16 @@ resource cognitiveServicesPrivateEndpoint 'Microsoft.Network/privateEndpoints@20
   }
 }
 
-resource cognitiveServicesContributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-  name: '25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'
+resource cognitiveServicesOpenAIContributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: 'a001fd3d-188f-4b5d-821b-7da978bf7442'
 }
 
 resource writerAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for principal in grantAccessTo: if (!empty(principal.id)) {
-    name: guid(principal.id, aiServices.id, cognitiveServicesContributor.id)
+    name: guid(principal.id, aiServices.id, cognitiveServicesOpenAIContributor.id)
     scope: aiServices
     properties: {
-      roleDefinitionId: cognitiveServicesContributor.id
+      roleDefinitionId: cognitiveServicesOpenAIContributor.id
       principalId: principal.id
       principalType: principal.type
     }
