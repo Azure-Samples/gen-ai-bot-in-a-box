@@ -61,7 +61,7 @@ param model string
 @allowed(['python|3.10', 'node|14', 'dotnetcore|8.0'])
 param stack string
 @description('Chat implementation to be used')
-@allowed(['chat-completions', 'assistants'])
+@allowed(['chat-completions', 'assistant'])
 param implementation string
 
 var modelName = split(model, ',')[0]
