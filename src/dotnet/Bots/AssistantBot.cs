@@ -135,11 +135,13 @@ namespace GenAIBot.Bots
         }
         protected async Task<bool> HandleFileUploads(ITurnContext<IMessageActivity> turnContext, AssistantThread thread, CancellationToken cancellationToken)
         {
+            var filesUploaded = false;
             // Check if incoming message has attached files
             if (turnContext.Activity.Attachments != null)
             {
                 foreach (var attachment in turnContext.Activity.Attachments)
                 {
+                    filesUploaded = true;
                     // Check if the attachment is an image
                     if (attachment.ContentType.Contains("image"))
                     {
@@ -169,7 +171,7 @@ namespace GenAIBot.Bots
 
                 }
             }
-            return turnContext.Activity.Attachments != null;
+            return filesUploaded;
         }
     }
 }

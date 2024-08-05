@@ -39,6 +39,6 @@ ASSISTANT_ID=$(curl "$AI_SERVICES_ENDPOINT/openai/assistants?api-version=2024-02
   -H "Authorization: Bearer $OAUTH_TOKEN"|\
   jq -r '[.data[] | select( .name == "'$AOAI_ASSISTANT_NAME'")][0] | .id')
 
-az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $APP_NAME --settings AOAI_ASSISTANT_ID=$ASSISTANT_ID APP_URL=$APP_HOSTNAME
+az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $APP_NAME --settings AZURE_OPENAI_ASSISTANT_ID=$ASSISTANT_ID APP_URL=$APP_HOSTNAME
 
 azd env set AZURE_ASSISTANT_ID $ASSISTANT_ID
