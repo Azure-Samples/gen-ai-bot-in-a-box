@@ -2,22 +2,34 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Dialogs;
+using Microsoft.Bot.Builder.Teams;
+using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
+using Microsoft.Extensions.Configuration;
 
 namespace Microsoft.BotBuilderSamples
 {
-    public class StateManagementBot : ActivityHandler
+    public class StateManagementBot<T> : TeamsActivityHandler where T : Dialog
     {
         public readonly BotState _conversationState;
         public readonly BotState _userState;
+        protected readonly Dialog _dialog;
+        public string _systemMessage;
+        public bool _sso_enabled;
+        public string _sso_config_name;
 
-        public StateManagementBot(ConversationState conversationState, UserState userState)
+        public StateManagementBot(IConfiguration config, ConversationState conversationState, UserState userState, T dialog)
         {
             _conversationState = conversationState;
             _userState = userState;
+            _dialog = dialog;
+            _sso_enabled = config.GetValue("SSO_ENABLED", false);
+            _sso_config_name = config.GetValue("SSO_CONFIG_NAME", "default");
         }
 
         public override async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default(CancellationToken))
@@ -34,14 +46,50 @@ namespace Microsoft.BotBuilderSamples
             await turnContext.SendActivityAsync("Welcome to State Bot Sample. Type anything to get started.");
         }
 
-        protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
+        protected async Task<bool> HandleLogin(ITurnContext turnContext, CancellationToken cancellationToken)
         {
-            // Get the state properties from the turn context.
+            if (!_sso_enabled)
+            {
+                await turnContext.SendActivityAsync("Warning: Bot authentication is disabled.");
+                return true;
+            }
+
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
             var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
 
             var userStateAccessors = _userState.CreateProperty<UserProfile>(nameof(UserProfile));
             var userProfile = await userStateAccessors.GetAsync(turnContext, () => new UserProfile());
+
+            var userTokenClient = turnContext.TurnState.Get<UserTokenClient>();
+
+            TokenResponse userToken;
+            try
+            {
+                userToken = await userTokenClient.GetUserTokenAsync(turnContext.Activity.From.Id, _sso_config_name, turnContext.Activity.ChannelId, null, cancellationToken);
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var securityToken = tokenHandler.ReadToken(userToken.Token) as JwtSecurityToken;
+                securityToken.Payload.TryGetValue("name", out var userName);
+                userProfile.Name = userName as string;
+                return true;
+            }
+            catch
+            {
+                await _dialog.RunAsync(turnContext, _conversationState.CreateProperty<DialogState>(nameof(DialogState)), cancellationToken);
+                return false;
+            }
+        }
+
+        protected async Task HandleLogout(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
+        {
+            var userTokenClient = turnContext.TurnState.Get<UserTokenClient>();
+            await userTokenClient.SignOutUserAsync(turnContext.Activity.From.Id, _sso_config_name, turnContext.Activity.ChannelId, cancellationToken).ConfigureAwait(false);
+            await turnContext.SendActivityAsync("Signed out");
+        }
+
+
+        protected override async Task OnTeamsSigninVerifyStateAsync(ITurnContext<IInvokeActivity> turnContext, CancellationToken cancellationToken)
+        {
+            await _dialog.RunAsync(turnContext, _conversationState.CreateProperty<DialogState>(nameof(DialogState)), cancellationToken);
         }
     }
 }

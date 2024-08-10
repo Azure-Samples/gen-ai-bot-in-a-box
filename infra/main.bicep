@@ -7,7 +7,7 @@ param environmentName string
 param myPrincipalId string = ''
 @description('IP addresses to grant access to the AI services. Leave empty to skip')
 param allowedIpAddresses string = ''
-var allowedIpAddressesArray = split(allowedIpAddresses, ',')
+var allowedIpAddressesArray = !empty(allowedIpAddresses) ? split(allowedIpAddresses, ',') : []
 @description('Resource group name for the AI services. Defauts to rg-<environmentName>')
 param resourceGroupName string = ''
 @description('Resource group name for the DNS configurations. Defaults to rg-dns')
@@ -92,6 +92,24 @@ var names = {
   computeInstance: '${abbrs.computeVirtualMachines}${environmentName}-${uniqueSuffix}'
 }
 
+
+// Private Network Resources
+var dnsZones = [
+  'privatelink.openai.azure.com'
+  'privatelink.cognitiveservices.azure.com'
+  'privatelink.blob.${environment().suffixes.storage}'
+  'privatelink.vault.azure.com'
+  'privatelink.search.azure.com'
+  'privatelink.documents.azure.com'
+  'privatelink.api.azureml.ms'
+  'privatelink.notebooks.azure.net'
+  'privatelink.azurewebsites.net'
+]
+
+var dnsZoneIds = publicNetworkAccess == 'Disabled' ? m_dns.outputs.dnsZoneIds : dnsZones
+var privateEndpointSubnetId = publicNetworkAccess == 'Disabled' ? m_network.outputs.privateEndpointSubnetId : ''
+
+
 // Deploy two resource groups
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: names.resourceGroup
@@ -99,7 +117,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   tags: tags
 }
 
-resource dnsResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
+resource dnsResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = if (publicNetworkAccess == 'Disabled') {
   name: names.dnsResourceGroup
   location: location
   tags: tags
@@ -107,7 +125,7 @@ resource dnsResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 
 
 // Network module - deploys Vnet
-module m_network 'modules/aistudio/network.bicep' = {
+module m_network 'modules/aistudio/network.bicep' = if (publicNetworkAccess == 'Disabled') {
   name: 'deploy_vnet'
   scope: resourceGroup
   params: {
@@ -122,23 +140,13 @@ module m_network 'modules/aistudio/network.bicep' = {
 }
 
 // DNS module - deploys private DNS zones and links them to the Vnet
-module m_dns 'modules/aistudio/dns.bicep' = {
+module m_dns 'modules/aistudio/dns.bicep' = if (publicNetworkAccess == 'Disabled') {
   name: 'deploy_dns'
   scope: dnsResourceGroup
   params: {
-    vnetId: m_network.outputs.vnetId
-    vnetName: m_network.outputs.vnetName
-    dnsZones: [
-      'privatelink.openai.azure.com'
-      'privatelink.cognitiveservices.azure.com'
-      'privatelink.blob.${environment().suffixes.storage}'
-      'privatelink.vault.azure.com'
-      'privatelink.search.azure.com'
-      'privatelink.documents.azure.com'
-      'privatelink.api.azureml.ms'
-      'privatelink.notebooks.azure.net'
-      'privatelink.azurewebsites.net'
-    ]
+    vnetId: publicNetworkAccess == 'Disabled' ? m_network.outputs.vnetId : ''
+    vnetName: publicNetworkAccess == 'Disabled' ? m_network.outputs.vnetName : ''
+    dnsZones: dnsZones
   }
 }
 
@@ -160,9 +168,9 @@ module m_aiServices 'modules/aistudio/aiServices.bicep' = {
     location: location
     aiServicesName: names.aiServices
     publicNetworkAccess: publicNetworkAccess
-    privateEndpointSubnetId: m_network.outputs.privateEndpointSubnetId
-    openAIPrivateDnsZoneId: m_dns.outputs.dnsZoneIds[0]
-    cognitiveServicesPrivateDnsZoneId: m_dns.outputs.dnsZoneIds[1]
+    privateEndpointSubnetId: privateEndpointSubnetId
+    openAIPrivateDnsZoneId: dnsZoneIds[0]
+    cognitiveServicesPrivateDnsZoneId: dnsZoneIds[1]
     grantAccessTo: [
       {
         id: myPrincipalId
@@ -189,8 +197,8 @@ module m_search 'modules/aistudio/searchService.bicep' = if (deploySearch) {
     location: location
     searchName: names.search
     publicNetworkAccess: publicNetworkAccess
-    privateEndpointSubnetId: m_network.outputs.privateEndpointSubnetId
-    privateDnsZoneId: m_dns.outputs.dnsZoneIds[4]
+    privateEndpointSubnetId: privateEndpointSubnetId
+    privateDnsZoneId: dnsZoneIds[4]
     tags: tags
   }
 }
@@ -228,8 +236,8 @@ module m_storage 'modules/aistudio/storage.bicep' = {
     storageName: names.storage
     publicNetworkAccess: publicNetworkAccess
     systemDatastoresAuthMode: systemDatastoresAuthMode
-    privateEndpointSubnetId: m_network.outputs.privateEndpointSubnetId
-    privateDnsZoneId: m_dns.outputs.dnsZoneIds[2]
+    privateEndpointSubnetId: privateEndpointSubnetId
+    privateDnsZoneId: dnsZoneIds[2]
     grantAccessTo: [
       {
         id: myPrincipalId
@@ -255,8 +263,8 @@ module m_cosmos 'modules/cosmos.bicep' = {
     location: location
     cosmosName: names.cosmos
     publicNetworkAccess: publicNetworkAccess
-    privateEndpointSubnetId: m_network.outputs.privateEndpointSubnetId
-    privateDnsZoneId: m_dns.outputs.dnsZoneIds[5]
+    privateEndpointSubnetId: privateEndpointSubnetId
+    privateDnsZoneId: dnsZoneIds[5]
     grantAccessTo: [
       {
         id: myPrincipalId
@@ -291,8 +299,8 @@ module m_app 'modules/appservice.bicep' = {
     linuxFxVersion: stack
     implementation: implementation
     tags: tags
-    privateEndpointSubnetId: m_network.outputs.privateEndpointSubnetId
-    privateDnsZoneId: m_dns.outputs.dnsZoneIds[8]
+    privateEndpointSubnetId: privateEndpointSubnetId
+    privateDnsZoneId: dnsZoneIds[8]
     appSubnetId: m_network.outputs.appSubnetId
     msiID: m_msi.outputs.msiID
     msiClientID: m_msi.outputs.msiClientID
@@ -320,6 +328,7 @@ module m_bot 'modules/botservice.bicep' = {
 output AZURE_TENANT_ID string = tenant().tenantId
 output AZURE_RESOURCE_GROUP_ID string = resourceGroup.id
 output AZURE_RESOURCE_GROUP_NAME string = resourceGroup.name
+output AZURE_OPENAI_DEPLOYMENT_NAME string = m_gpt.outputs.modelName
 output AI_SERVICES_ENDPOINT string = m_aiServices.outputs.aiServicesEndpoint
 output APP_NAME string = m_app.outputs.appName
 output APP_HOSTNAME string = m_app.outputs.hostName

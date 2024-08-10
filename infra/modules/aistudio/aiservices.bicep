@@ -34,7 +34,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   tags: tags
 }
 
-resource aiPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+resource aiPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = if (publicNetworkAccess == 'Disabled') {
   name: 'pl-oai-${aiServicesName}'
   location: location
   tags: tags
@@ -67,7 +67,7 @@ resource aiPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
   }
 }
 
-resource cognitiveServicesPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+resource cognitiveServicesPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = if (publicNetworkAccess == 'Disabled') {
   name: 'pl-${aiServicesName}'
   location: location
   tags: tags

@@ -2,20 +2,22 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Microsoft.BotBuilderSamples;
 using Microsoft.Extensions.Configuration;
-using OpenAI.Chat;
 
 namespace GenAIBot.Bots
 {
-    public class TemplateBot : StateManagementBot
+    public class TemplateBot<T> : StateManagementBot<T> where T : Dialog
     {
         private readonly string _instructions;
-        public TemplateBot(IConfiguration config, ConversationState conversationState, UserState userState)
-            : base(conversationState, userState)
+        private readonly string _welcomeMessage;
+        public TemplateBot(IConfiguration config, ConversationState conversationState, UserState userState, T dialog)
+            : base(config, conversationState, userState, dialog)
         {
             _instructions = config["LLM_INSTRUCTIONS"];
+            _welcomeMessage = config.GetValue("LLM_WELCOME_MESSAGE", "Hello and welcome to the Template Bot Dotnet!");
             // Inject dependencies here
         }
 
@@ -26,12 +28,14 @@ namespace GenAIBot.Bots
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text("Hello and welcome to the Template Bot Dotnet!"), cancellationToken);
+                    await turnContext.SendActivityAsync(MessageFactory.Text(_welcomeMessage), cancellationToken);
                 }
             }
+            // Log in at the start of the conversation
+            await HandleLogin(turnContext, cancellationToken);
         }
 
-        protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
+        protected override async Task<bool> OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
             // Load conversation state
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
@@ -44,6 +48,13 @@ namespace GenAIBot.Bots
                 });
 
             // Catch any special messages here
+
+            // Enforce login
+            var loggedIn = await HandleLogin(turnContext, cancellationToken);
+            if (!loggedIn)
+            {
+                return false;
+            }
             
             // Add user message to history
             conversationData.AddTurn("user", turnContext.Activity.Text);
@@ -56,6 +67,9 @@ namespace GenAIBot.Bots
             
             // Respond back to user
             await turnContext.SendActivityAsync(MessageFactory.Text(response), cancellationToken);
+
+            // Return true if bot should run next handlers
+            return true;
         }
     }
 }

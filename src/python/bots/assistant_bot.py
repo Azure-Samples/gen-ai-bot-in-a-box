@@ -79,8 +79,10 @@ class AssistantBot(StateManagementBot):
 
     # Helper to handle file uploads from user
     async def handle_file_uploads(self, turn_context: TurnContext, thread_id: str):
+        filesUploaded = False
+        # Check if incoming message has attached files
         if turn_context.activity.attachments is not None:
-            # Check if incoming message has attached files
+            filesUploaded = True
             for attachment in turn_context.activity.attachments:
                 # Images uploads are not supported yet
                 if "image" in attachment.content_type:
@@ -108,4 +110,5 @@ class AssistantBot(StateManagementBot):
                 await turn_context.send_activity(f"File {attachment.name} uploaded successfully.")
 
         # Return True if files were uploaded
-        return turn_context.activity.attachments is not None
+        return filesUploaded
+

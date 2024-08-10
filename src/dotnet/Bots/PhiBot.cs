@@ -2,18 +2,19 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Microsoft.BotBuilderSamples;
 using Microsoft.Extensions.Configuration;
 
 namespace GenAIBot.Bots
 {
-    public class PhiBot : StateManagementBot
+    public class PhiBot<T> : StateManagementBot<T> where T : Dialog
     {
         private readonly Phi _phiClient;
         private readonly string _instructions;
-        public PhiBot(IConfiguration config, ConversationState conversationState, UserState userState, Phi phiClient)
-            : base(conversationState, userState)
+        public PhiBot(IConfiguration config, ConversationState conversationState, UserState userState, Phi phiClient, T dialog)
+            : base(config, conversationState, userState, dialog)
         {
             _phiClient = phiClient;
             _instructions = config["LLM_INSTRUCTIONS"];
@@ -31,7 +32,7 @@ namespace GenAIBot.Bots
             }
         }
 
-        protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
+        protected override async Task<bool> OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
             // Load conversation state
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
@@ -55,6 +56,8 @@ namespace GenAIBot.Bots
             
             // Respond back to user
             await turnContext.SendActivityAsync(MessageFactory.Text(response), cancellationToken);
+
+            return true;
         }
     }
 }

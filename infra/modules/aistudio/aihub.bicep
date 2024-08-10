@@ -43,8 +43,8 @@ resource aiHub 'Microsoft.MachineLearningServices/workspaces@2024-04-01-preview'
   properties: {
     publicNetworkAccess: publicNetworkAccess
     managedNetwork: {
-      isolationMode: 'AllowOnlyApprovedOutbound'
-      outboundRules: !empty(search.name)
+      isolationMode: publicNetworkAccess == 'Disabled' ? 'AllowOnlyApprovedOutbound' : 'Disabled'
+      outboundRules: publicNetworkAccess == 'Disabled' && !empty(search.name)
         ? {
             'rule-${search.name}': {
               type: 'PrivateEndpoint'
@@ -117,7 +117,7 @@ resource aiProject 'Microsoft.MachineLearningServices/workspaces@2024-04-01-prev
   kind: 'Project'
 }
 
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = if (publicNetworkAccess == 'Disabled') {
   name: 'pl-${aiHubName}'
   location: location
   tags: tags

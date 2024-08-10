@@ -16,12 +16,8 @@ namespace Microsoft.BotBuilderSamples
     public class Attachment
     {
         public string Name { get; set; }
-        public List<AttachmentPage> Pages { get; set; } = new List<AttachmentPage>();
-    }
-    public class AttachmentPage
-    {
-        public string Content { get; set; } = null;
-        public float[] Vector { get; set; } = null;
+        public string ContentType { get; set; }
+        public string Url { get; set; }
     }
     // Defines a state property used to track conversation data.
     public class ConversationData

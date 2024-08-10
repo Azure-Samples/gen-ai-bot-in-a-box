@@ -4,12 +4,15 @@
 using System;
 using Azure.AI.OpenAI;
 using Azure.Identity;
+using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Azure;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Connector.Authentication;
+using Microsoft.BotBuilderSamples;
+using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -89,22 +92,24 @@ namespace GenAIBot
             var conversationState = new ConversationState(storage);
             services.AddSingleton(conversationState);
 
-            // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
+            // Add the Login dialog
+            services.AddSingleton<LoginDialog>();
 
+            // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
             switch (configuration.GetValue<string>("GEN_AI_IMPLEMENTATION"))
             {
                 case "chat-completions":
-                    services.AddTransient<IBot, Bots.ChatCompletionBot>();
+                    services.AddTransient<IBot, Bots.ChatCompletionBot<LoginDialog>>();
                     break;
                 case "assistant":
-                    services.AddTransient<IBot, Bots.AssistantBot>();
+                    services.AddTransient<IBot, Bots.AssistantBot<LoginDialog>>();
                     break;
                 case "semantic-kernel":
                     throw new Exception("Semantic Kernel is not supported in this version.");
                 case "langchain":
                     throw new Exception("Langchain is not supported in this version.");
                 case "phi":
-                    services.AddTransient<IBot, Bots.PhiBot>();
+                    services.AddTransient<IBot, Bots.PhiBot<LoginDialog>>();
                     break;
                 default:
                     throw new Exception("Invalid engine type");
@@ -113,6 +118,11 @@ namespace GenAIBot
             if (configuration.GetValue<string>("AZURE_SPEECH_API_ENDPOINT") != null)
                 services.AddSingleton(new SpeechService(new System.Net.Http.HttpClient(), configuration.GetValue<string>("AZURE_SPEECH_API_ENDPOINT"), configuration.GetValue<string>("AZURE_SPEECH_REGION"), credential));
 
+            BlobServiceClient blobServiceClient = new BlobServiceClient(new Uri(configuration.GetValue<string>("AZURE_STORAGE_BLOB_ENDPOINT")), credential);
+            BlobContainerClient blobContainerClient = blobServiceClient.GetBlobContainerClient(configuration.GetValue<string>("AZURE_STORAGE_BLOB_CONTAINER"));
+            services.AddSingleton(blobContainerClient);
+            services.AddSingleton<FileService>();
+            services.AddHttpClient();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

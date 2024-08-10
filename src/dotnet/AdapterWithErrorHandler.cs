@@ -26,7 +26,7 @@ namespace GenAIBot
                 if (config["DEBUG"] == "true")
                 {
                     await turnContext.SendActivityAsync(exception.Message);
-                    await turnContext.SendActivityAsync(exception.StackTrace);
+                    // await turnContext.SendActivityAsync(exception.StackTrace);
                 }
 
             };

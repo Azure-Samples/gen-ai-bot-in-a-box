@@ -6,23 +6,23 @@ using System.Threading.Tasks;
 using Azure.AI.OpenAI;
 using Azure.AI.OpenAI.Chat;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Microsoft.BotBuilderSamples;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
-using Utils;
 
 namespace GenAIBot.Bots
 {
-    public class ChatCompletionBot : StateManagementBot
+    public class ChatCompletionBot<T> : StateManagementBot<T> where T : Dialog
     {
         private readonly ChatClient _chatClient;
         private readonly string _instructions;
         private readonly string _searchEndpoint;
         private readonly string _searchIndex;
 
-        public ChatCompletionBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient)
-            : base(conversationState, userState)
+        public ChatCompletionBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient, T dialog)
+            : base(config, conversationState, userState, dialog)
         {
             _chatClient = aoaiClient.GetChatClient(config["AZURE_OPENAI_DEPLOYMENT_NAME"]);
             _instructions = config["LLM_INSTRUCTIONS"];
@@ -43,7 +43,7 @@ namespace GenAIBot.Bots
             }
         }
 
-        protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
+        protected override async Task<bool> OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
             // Load conversation state
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
@@ -92,6 +92,7 @@ namespace GenAIBot.Bots
                     await turnContext.SendActivityAsync(message, cancellationToken);
                 }
             }
+            return true;
         }
     }
 }

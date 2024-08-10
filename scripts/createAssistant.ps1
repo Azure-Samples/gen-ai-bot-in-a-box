@@ -12,7 +12,7 @@ foreach ($line in (& azd env get-values)) {
 
 $AOAI_API_KEY=az cognitiveservices account keys list -n $env:AI_SERVICES_NAME -g $env:AZURE_RESOURCE_GROUP_NAME --query key1 -o tsv
 $AOAI_ASSISTANT_NAME="assistant_in_a_box"
-$ASSISTANT_ID=((curl "${env:AI_SERVICES_ENDPOINT}openai/assistants`?api-version=2024-02-15-preview" -H "api-key: $AOAI_API_KEY" | ConvertFrom-Json).data | Where-Object name -eq $AOAI_ASSISTANT_NAME).id
+$ASSISTANT_ID=((curl "${env:AI_SERVICES_ENDPOINT}openai/assistants`?api-version=2024-07-01-preview" -H "api-key: $AOAI_API_KEY" | ConvertFrom-Json).data | Where-Object name -eq $AOAI_ASSISTANT_NAME).id
 
 if ( $ASSISTANT_ID -eq $null )    
     {
@@ -43,14 +43,13 @@ echo "{
     `"tools`":[
         $TOOLS
     ],
-    `"file_ids`":[],
     `"metadata`":{}
   }" | Out-File tmp.json
-curl "${env:AI_SERVICES_ENDPOINT}openai/assistants$ASSISTANT_ID`?api-version=2024-02-15-preview" -H "api-key: $AOAI_API_KEY" -H 'content-type: application/json' -d '@tmp.json'
+curl "${env:AI_SERVICES_ENDPOINT}openai/assistants$ASSISTANT_ID`?api-version=2024-07-01-preview" -H "api-key: $AOAI_API_KEY" -H 'content-type: application/json' -d '@tmp.json'
 
 rm tmp.json
 
-$ASSISTANT_ID=((curl "${env:AI_SERVICES_ENDPOINT}openai/assistants`?api-version=2024-02-15-preview" -H "api-key: $AOAI_API_KEY" | ConvertFrom-Json).data | Where-Object name -eq $AOAI_ASSISTANT_NAME).id
+$ASSISTANT_ID=((curl "${env:AI_SERVICES_ENDPOINT}openai/assistants`?api-version=2024-07-01-preview" -H "api-key: $AOAI_API_KEY" | ConvertFrom-Json).data | Where-Object name -eq $AOAI_ASSISTANT_NAME).id
 if ( $ASSISTANT_ID -eq $null )    
     {
         throw "Failed to create assistant"
@@ -60,4 +59,4 @@ else
         echo "Assistant created/updated successfully"
     }
 
-az webapp config appsettings set -g $env:AZURE_RESOURCE_GROUP_NAME -n $env:APP_NAME --settings AOAI_ASSISTANT_ID=$ASSISTANT_ID APP_URL=$env:APP_HOSTNAME
+az webapp config appsettings set -g $env:AZURE_RESOURCE_GROUP_NAME -n $env:APP_NAME --settings AZURE_OPENAI_ASSISTANT_ID=$ASSISTANT_ID

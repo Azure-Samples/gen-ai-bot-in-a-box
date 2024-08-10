@@ -88,6 +88,30 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
           value: tenant().tenantId
         }
         {
+          name: 'SSO_ENABLED'
+          value: 'false'
+        }
+        {
+          name: 'SSO_CONFIG_NAME'
+          value: ''
+        }
+        {
+          name: 'SSO_MESSAGE_TITLE'
+          value: 'Please sign in to continue.'
+        }
+        {
+          name: 'SSO_MESSAGE_PROMPT'
+          value: 'Sign in'
+        }
+        {
+          name: 'SSO_MESSAGE_SUCCESS'
+          value: 'User logged in successfully! Please repeat your question.'
+        }
+        {
+          name: 'SSO_MESSAGE_FAILED'
+          value: 'Log in failed. Type anything to retry.'
+        }
+        {
           name: 'GEN_AI_IMPLEMENTATION'
           value: implementation
         }

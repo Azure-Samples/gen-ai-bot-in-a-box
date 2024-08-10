@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.29.47.4906",
-      "templateHash": "8076190926193648296"
+      "templateHash": "17194242089014619041"
     }
   },
   "parameters": {
@@ -336,7 +336,7 @@
       "webSitesFunctions": "func-",
       "webStaticSites": "stapp-"
     },
-    "allowedIpAddressesArray": "[split(parameters('allowedIpAddresses'), ',')]",
+    "allowedIpAddressesArray": "[if(not(empty(parameters('allowedIpAddresses'))), split(parameters('allowedIpAddresses'), ','), createArray())]",
     "modelName": "[split(parameters('model'), ',')[0]]",
     "modelVersion": "[split(parameters('model'), ',')[1]]",
     "abbrs": "[variables('$fxv#0')]",
@@ -357,7 +357,18 @@
       "search": "[if(not(empty(parameters('searchName'))), parameters('searchName'), format('{0}{1}-{2}', variables('abbrs').searchSearchServices, parameters('environmentName'), variables('uniqueSuffix')))]",
       "storage": "[if(not(empty(parameters('storageName'))), parameters('storageName'), replace(replace(format('{0}{1}{2}', variables('abbrs').storageStorageAccounts, parameters('environmentName'), variables('uniqueSuffix')), '-', ''), '_', ''))]",
       "computeInstance": "[format('{0}{1}-{2}', variables('abbrs').computeVirtualMachines, parameters('environmentName'), variables('uniqueSuffix'))]"
-    }
+    },
+    "dnsZones": [
+      "privatelink.openai.azure.com",
+      "privatelink.cognitiveservices.azure.com",
+      "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
+      "privatelink.vault.azure.com",
+      "privatelink.search.azure.com",
+      "privatelink.documents.azure.com",
+      "privatelink.api.azureml.ms",
+      "privatelink.notebooks.azure.net",
+      "privatelink.azurewebsites.net"
+    ]
   },
   "resources": [
     {
@@ -368,6 +379,7 @@
       "tags": "[parameters('tags')]"
     },
     {
+      "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
       "type": "Microsoft.Resources/resourceGroups",
       "apiVersion": "2023-07-01",
       "name": "[variables('names').dnsResourceGroup]",
@@ -375,6 +387,7 @@
       "tags": "[parameters('tags')]"
     },
     {
+      "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "deploy_vnet",
@@ -505,6 +518,7 @@
       ]
     },
     {
+      "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "deploy_dns",
@@ -515,24 +529,10 @@
         },
         "mode": "Incremental",
         "parameters": {
-          "vnetId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.vnetId.value]"
-          },
-          "vnetName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.vnetName.value]"
-          },
+          "vnetId": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.vnetId.value), createObject('value', ''))]",
+          "vnetName": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.vnetName.value), createObject('value', ''))]",
           "dnsZones": {
-            "value": [
-              "privatelink.openai.azure.com",
-              "privatelink.cognitiveservices.azure.com",
-              "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
-              "privatelink.vault.azure.com",
-              "privatelink.search.azure.com",
-              "privatelink.documents.azure.com",
-              "privatelink.api.azureml.ms",
-              "privatelink.notebooks.azure.net",
-              "privatelink.azurewebsites.net"
-            ]
+            "value": "[variables('dnsZones')]"
           }
         },
         "template": {
@@ -720,14 +720,12 @@
           "publicNetworkAccess": {
             "value": "[parameters('publicNetworkAccess')]"
           },
-          "privateEndpointSubnetId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value]"
-          },
+          "privateEndpointSubnetId": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value), createObject('value', ''))]",
           "openAIPrivateDnsZoneId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value[0]]"
+            "value": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value, variables('dnsZones'))[0]]"
           },
           "cognitiveServicesPrivateDnsZoneId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value[1]]"
+            "value": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value, variables('dnsZones'))[1]]"
           },
           "grantAccessTo": {
             "value": [
@@ -759,7 +757,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "8776815050039479179"
+              "templateHash": "3836825972354755895"
             }
           },
           "parameters": {
@@ -795,6 +793,7 @@
           },
           "resources": [
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
               "apiVersion": "2021-05-01",
               "name": "[format('{0}/{1}', format('pl-oai-{0}', parameters('aiServicesName')), format('zg-{0}', parameters('aiServicesName')))]",
@@ -813,6 +812,7 @@
               ]
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
               "apiVersion": "2021-05-01",
               "name": "[format('{0}/{1}', format('pl-{0}', parameters('aiServicesName')), format('zg-{0}', parameters('aiServicesName')))]",
@@ -862,6 +862,7 @@
               "tags": "[parameters('tags')]"
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints",
               "apiVersion": "2021-05-01",
               "name": "[format('pl-oai-{0}', parameters('aiServicesName'))]",
@@ -888,6 +889,7 @@
               ]
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints",
               "apiVersion": "2021-05-01",
               "name": "[format('pl-{0}', parameters('aiServicesName'))]",
@@ -982,11 +984,9 @@
           "publicNetworkAccess": {
             "value": "[parameters('publicNetworkAccess')]"
           },
-          "privateEndpointSubnetId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value]"
-          },
+          "privateEndpointSubnetId": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value), createObject('value', ''))]",
           "privateDnsZoneId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value[4]]"
+            "value": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value, variables('dnsZones'))[4]]"
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -999,7 +999,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "16942939423198703148"
+              "templateHash": "14538367516829883528"
             }
           },
           "parameters": {
@@ -1025,6 +1025,7 @@
           },
           "resources": [
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
               "apiVersion": "2021-05-01",
               "name": "[format('{0}/{1}', format('pl-{0}', parameters('searchName')), format('zg-{0}', parameters('searchName')))]",
@@ -1066,6 +1067,7 @@
               }
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints",
               "apiVersion": "2021-05-01",
               "name": "[format('pl-{0}', parameters('searchName'))]",
@@ -1265,11 +1267,9 @@
           "systemDatastoresAuthMode": {
             "value": "[parameters('systemDatastoresAuthMode')]"
           },
-          "privateEndpointSubnetId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value]"
-          },
+          "privateEndpointSubnetId": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value), createObject('value', ''))]",
           "privateDnsZoneId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value[2]]"
+            "value": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value, variables('dnsZones'))[2]]"
           },
           "grantAccessTo": {
             "value": [
@@ -1298,7 +1298,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "9356256917516775976"
+              "templateHash": "2691467496268992204"
             }
           },
           "parameters": {
@@ -1331,6 +1331,7 @@
           },
           "resources": [
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
               "apiVersion": "2021-05-01",
               "name": "[format('{0}/{1}', format('pl-{0}', parameters('storageName')), format('zg-{0}', parameters('storageName')))]",
@@ -1383,6 +1384,7 @@
               }
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints",
               "apiVersion": "2021-05-01",
               "name": "[format('pl-{0}', parameters('storageName'))]",
@@ -1468,11 +1470,9 @@
           "publicNetworkAccess": {
             "value": "[parameters('publicNetworkAccess')]"
           },
-          "privateEndpointSubnetId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value]"
-          },
+          "privateEndpointSubnetId": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value), createObject('value', ''))]",
           "privateDnsZoneId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value[5]]"
+            "value": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value, variables('dnsZones'))[5]]"
           },
           "grantAccessTo": {
             "value": [
@@ -1497,7 +1497,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "17493870194155558989"
+              "templateHash": "7886344001887263944"
             }
           },
           "parameters": {
@@ -1559,6 +1559,7 @@
               ]
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
               "apiVersion": "2021-05-01",
               "name": "[format('{0}/{1}', format('pl-{0}', parameters('cosmosName')), format('zg-{0}', parameters('cosmosName')))]",
@@ -1597,6 +1598,7 @@
               }
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints",
               "apiVersion": "2021-05-01",
               "name": "[format('pl-{0}', parameters('cosmosName'))]",
@@ -1771,11 +1773,9 @@
           "tags": {
             "value": "[parameters('tags')]"
           },
-          "privateEndpointSubnetId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value]"
-          },
+          "privateEndpointSubnetId": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value), createObject('value', ''))]",
           "privateDnsZoneId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value[8]]"
+            "value": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value, variables('dnsZones'))[8]]"
           },
           "appSubnetId": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.appSubnetId.value]"
@@ -1804,7 +1804,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "13656438848110539239"
+              "templateHash": "13570481334253016569"
             }
           },
           "parameters": {
@@ -1956,6 +1956,30 @@
                     {
                       "name": "MicrosoftAppTenantId",
                       "value": "[tenant().tenantId]"
+                    },
+                    {
+                      "name": "SSO_ENABLED",
+                      "value": "false"
+                    },
+                    {
+                      "name": "SSO_CONFIG_NAME",
+                      "value": ""
+                    },
+                    {
+                      "name": "SSO_MESSAGE_TITLE",
+                      "value": "Please sign in to continue."
+                    },
+                    {
+                      "name": "SSO_MESSAGE_PROMPT",
+                      "value": "Sign in"
+                    },
+                    {
+                      "name": "SSO_MESSAGE_SUCCESS",
+                      "value": "User logged in successfully! Please repeat your question."
+                    },
+                    {
+                      "name": "SSO_MESSAGE_FAILED",
+                      "value": "Log in failed. Type anything to retry."
                     },
                     {
                       "name": "GEN_AI_IMPLEMENTATION",
@@ -2203,6 +2227,10 @@
     "AZURE_RESOURCE_GROUP_NAME": {
       "type": "string",
       "value": "[variables('names').resourceGroup]"
+    },
+    "AZURE_OPENAI_DEPLOYMENT_NAME": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploygpt'), '2022-09-01').outputs.modelName.value]"
     },
     "AI_SERVICES_ENDPOINT": {
       "type": "string",

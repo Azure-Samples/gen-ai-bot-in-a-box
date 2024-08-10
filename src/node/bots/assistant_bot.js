@@ -87,9 +87,11 @@ class AssistantBot extends StateManagementBot {
 
     // Helper to handle file uploads from user
     async handleFileUploads(context, threadId) {
+        let filesUploaded = false;
         // Check if incoming message has attached files
         if (context.activity.attachments != null) {
             for (const attachment of context.activity.attachments) {
+                filesUploaded = true;
                 // Image uploads are not supported yet
                 if (attachment.contentType.includes('image')) {
                     await context.sendActivity('Image uploads are not supported yet.');
@@ -123,7 +125,7 @@ class AssistantBot extends StateManagementBot {
         }
         
         // Return true if files were uploaded
-        return context.activity.attachments != null
+        return filesUploaded
     }
 }
 
