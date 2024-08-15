@@ -114,14 +114,6 @@ namespace GenAIBot
                 default:
                     throw new Exception("Invalid engine type");
             }
-            services.AddHttpClient<DirectLineService>();
-            if (configuration.GetValue<string>("AZURE_SPEECH_API_ENDPOINT") != null)
-                services.AddSingleton(new SpeechService(new System.Net.Http.HttpClient(), configuration.GetValue<string>("AZURE_SPEECH_API_ENDPOINT"), configuration.GetValue<string>("AZURE_SPEECH_REGION"), credential));
-
-            BlobServiceClient blobServiceClient = new BlobServiceClient(new Uri(configuration.GetValue<string>("AZURE_STORAGE_BLOB_ENDPOINT")), credential);
-            BlobContainerClient blobContainerClient = blobServiceClient.GetBlobContainerClient(configuration.GetValue<string>("AZURE_STORAGE_BLOB_CONTAINER"));
-            services.AddSingleton(blobContainerClient);
-            services.AddSingleton<FileService>();
             services.AddHttpClient();
         }
 

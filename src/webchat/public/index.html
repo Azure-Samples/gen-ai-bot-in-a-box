@@ -37,6 +37,7 @@
       }
     </style>
   </head>
+  
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="webchat"></div>
@@ -58,7 +59,7 @@
         return await res.json();
       }
 
-      (async function main() {
+      async function main(locale) {
         let directLineToken = await fetchJSON('/api/directline/token')
           .then(res => res.token)
         let speechData = await fetchJSON('/api/speech/token')
@@ -66,17 +67,18 @@
         WebChat.renderWebChat(
           {
             directLine: createDirectLine({ token: directLineToken }),
-            locale: 'en-US',
+            locale: locale,
             webSpeechPonyfillFactory: speechData ? WebChat.createCognitiveServicesSpeechServicesPonyfillFactory({
               credentials: {
                 region: speechData.region,
-                authorizationToken: speechData.token
+                authorizationToken: `bearer ${speechData.token}`
               }
             }) : undefined
           },
           document.getElementById('webchat')
         );
-      })();
+      };
+      main('en-US');
     </script>
     <div id="root"></div>
   </body>

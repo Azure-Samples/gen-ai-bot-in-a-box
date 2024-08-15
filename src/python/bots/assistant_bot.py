@@ -34,11 +34,11 @@ class AssistantBot(StateManagementBot):
             thread = self._aoai_client.beta.threads.create()
             conversation_data.thread_id = thread.id
 
-        # Check if this is a file upload and process it
-        filesUploaded = await self.handle_file_uploads(turn_context, conversation_data.thread_id);
-        # Return early if it is
-        if (filesUploaded):
-            return
+        # # Check if this is a file upload and process it
+        # filesUploaded = await self.handle_file_uploads(turn_context, conversation_data.thread_id);
+        # # Return early if it is
+        # if (filesUploaded):
+        #     return
 
         # Add user message to history
         conversation_data.add_turn("user", turn_context.activity.text)

@@ -16,7 +16,7 @@ if ($envValues["STACK"] -ne "python") {
 Write-Output "Switching MSI to Single Tenant mode..."
 
 # Create an App Registration and retrieve its ID and Client ID.
-$app = az ad app create --display-name $env:APP_NAME --web-redirect-uris "https://token.botframework.com/.auth/web/redirect" | ConvertFrom-Json
+$app = az ad app create --display-name $env:BACKEND_APP_NAME --web-redirect-uris "https://token.botframework.com/.auth/web/redirect" | ConvertFrom-Json
 $appId = $app.id
 $clientId = $app.appId
 
@@ -28,7 +28,7 @@ $clientSecret = $secret.password
 az bot delete --name $env:BOT_NAME --resource-group $env:AZURE_RESOURCE_GROUP_NAME --yes
 
 # Recreate the bot with Single Tenant registration
-az bot create --name $env:BOT_NAME --resource-group $env:AZURE_RESOURCE_GROUP_NAME --app-type SingleTenant --appid $clientId --tenant-id $env:AZURE_TENANT_ID -e "https://$($env:APP_NAME).azurewebsites.net/api/messages" -l global
+az bot create --name $env:BOT_NAME --resource-group $env:AZURE_RESOURCE_GROUP_NAME --app-type SingleTenant --appid $clientId --tenant-id $env:AZURE_TENANT_ID -e "https://$($env:BACKEND_APP_NAME).azurewebsites.net/api/messages" -l global
 
 # Configure the App Service with Single Tenant app credentials.
-az webapp config appsettings set -g $env:AZURE_RESOURCE_GROUP_NAME -n $env:APP_NAME --settings MicrosoftAppId=$clientId MicrosoftAppPassword=$clientSecret MicrosoftAppType=SingleTenant
+az webapp config appsettings set -g $env:AZURE_RESOURCE_GROUP_NAME -n $env:BACKEND_APP_NAME --settings MicrosoftAppId=$clientId MicrosoftAppPassword=$clientSecret MicrosoftAppType=SingleTenant

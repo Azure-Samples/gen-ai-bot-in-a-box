@@ -8,58 +8,61 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using OpenAI.Chat;
 
-public class Phi
+namespace Services
 {
-    private readonly string _deploymentEndpoint;
-    private readonly string _deploymentKey;
-    private static readonly HttpClient client = new HttpClient();
-
-    public Phi(string deploymentEndpoint, string deploymentKey)
+    public class Phi
     {
-        _deploymentEndpoint = deploymentEndpoint;
-        _deploymentKey = deploymentKey;
-    }
+        private readonly string _deploymentEndpoint;
+        private readonly string _deploymentKey;
+        private static readonly HttpClient client = new HttpClient();
 
-    public async Task<JObject> CreateCompletion(List<ChatMessage> messages)
-    {
-        try
+        public Phi(string deploymentEndpoint, string deploymentKey)
         {
-            var content = new Dictionary<string, object>() {
-                { "messages", messages.Select(m => new { 
-                    role = 
+            _deploymentEndpoint = deploymentEndpoint;
+            _deploymentKey = deploymentKey;
+        }
+
+        public async Task<JObject> CreateCompletion(List<ChatMessage> messages)
+        {
+            try
+            {
+                var content = new Dictionary<string, object>() {
+                { "messages", messages.Select(m => new {
+                    role =
                         m is SystemChatMessage ? "system" :
                         m is AssistantChatMessage ? "assistant" :
-                        "user", 
+                        "user",
                     content = m.Content[0].Text
-                }).ToList() } 
+                }).ToList() }
             };
-            Console.WriteLine(JsonSerializer.Serialize(content));
-            
-            var request = new HttpRequestMessage
-            {
-                Method = HttpMethod.Post,
-                RequestUri = new Uri(_deploymentEndpoint),
-                Headers = 
+                Console.WriteLine(JsonSerializer.Serialize(content));
+
+                var request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Post,
+                    RequestUri = new Uri(_deploymentEndpoint),
+                    Headers =
                 {
                     { "Authorization", $"Bearer {_deploymentKey}" },
                 },
-                Content = new StringContent(JsonSerializer.Serialize(content), Encoding.UTF8, "application/json")
-            };
+                    Content = new StringContent(JsonSerializer.Serialize(content), Encoding.UTF8, "application/json")
+                };
 
-            var response = await client.SendAsync(request);
+                var response = await client.SendAsync(request);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new Exception($"HTTP error! status: {response.StatusCode}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"HTTP error! status: {response.StatusCode}");
+                }
+                JObject json = JObject.Parse(await response.Content.ReadAsStringAsync());
+                return json;
+
             }
-            JObject json = JObject.Parse(await response.Content.ReadAsStringAsync());
-            return json;
-
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error in CreateCompletion: {ex.Message}");
-            throw;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in CreateCompletion: {ex.Message}");
+                throw;
+            }
         }
     }
 }

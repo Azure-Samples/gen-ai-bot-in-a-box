@@ -8,6 +8,8 @@ class TemplateBot extends StateManagementBot {
 
     constructor(conversationState, userState) {
         super(conversationState, userState);
+        this._instructions = process.env("LLM_INSTRUCTIONS")
+        this._welcomeMessage = process.env("LLM_WELCOME_MESSAGE") || "Hello and welcome to the Template Bot NodeJS!"
         // Inject dependencies here
 
         // Modify onMembersAdded as needed
@@ -15,7 +17,7 @@ class TemplateBot extends StateManagementBot {
             const membersAdded = context.activity.membersAdded;
             for (let member of membersAdded) {
                 if (member.id !== context.activity.recipient.id) {
-                    await context.sendActivity("Hello and welcome to the Template Bot NodeJS!");
+                    await context.sendActivity(this._welcomeMessage);
                 }
             }
             await next();
@@ -23,7 +25,9 @@ class TemplateBot extends StateManagementBot {
 
         this.onMessage(async (context, next) => {
             // Load conversation state
-            let conversationData = await this.conversationDataAccessor.get(context, new ConversationData([]));
+            let conversationData = await this.conversationDataAccessor.get(context, new ConversationData([
+                new ConversationTurn('system', this._instructions)
+            ]));
 
             // Catch any special messages here
 

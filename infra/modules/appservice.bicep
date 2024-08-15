@@ -1,6 +1,7 @@
 param location string
 param appServicePlanName string
-param appServiceName string
+param backendAppServiceName string
+param frontendAppServiceName string
 param msiID string
 param msiClientID string
 param linuxFxVersion string
@@ -44,10 +45,10 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   kind: 'linux'
 }
 
-resource appService 'Microsoft.Web/sites@2023-12-01' = {
-  name: appServiceName
+resource backend 'Microsoft.Web/sites@2023-12-01' = {
+  name: backendAppServiceName
   location: location
-  tags: union(tags, { 'azd-service-name': 'genai-bot-app' })
+  tags: union(tags, { 'azd-service-name': 'genai-bot-app-backend' })
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -73,6 +74,7 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
       scmIpSecurityRestrictionsDefaultAction: 'Allow'
       http20Enabled: true
       linuxFxVersion: linuxFxVersion
+      webSocketsEnabled: true
       appCommandLine: startsWith(linuxFxVersion, 'python') ? 'gunicorn --bind 0.0.0.0 --timeout 600 app:app --worker-class aiohttp.GunicornWebWorker' : ''
       appSettings: [
         {
@@ -156,16 +158,16 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
           value: '10'
         }
         {
+          name: 'LLM_WELCOME_MESSAGE'
+          value: 'Hello and welcome!'
+        }
+        {
           name: 'LLM_INSTRUCTIONS'
           value: 'Answer the questions as accurately as possible using the provided functions.'
         }
         {
-          name: 'APP_HOSTNAME'
-          value: '${appServiceName}.azurewebsites.net'
-        }
-        {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: startsWith(linuxFxVersion,'dotnet') ? 'false' : 'true'
+          value: 'true'
         }
         {
           name: 'ENABLE_ORYX_BUILD'
@@ -180,9 +182,79 @@ resource appService 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
+resource frontend 'Microsoft.Web/sites@2023-12-01' = {
+  name: frontendAppServiceName
+  location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${msiID}': {}
+    }
+  }
+  tags: union(tags, { 'azd-service-name': 'genai-bot-app-frontend' })
+  properties: {
+    serverFarmId: appServicePlan.id
+    httpsOnly: true
+    virtualNetworkSubnetId: appSubnetId
+    siteConfig: {
+      publicNetworkAccess: 'Enabled'
+      ipSecurityRestrictionsDefaultAction: 'Allow'
+      scmIpSecurityRestrictionsDefaultAction: 'Allow'
+      http20Enabled: true
+      linuxFxVersion: 'NODE|20-lts'
+      appCommandLine: startsWith(linuxFxVersion, 'python') ? 'gunicorn --bind 0.0.0.0 --timeout 600 app:app --worker-class aiohttp.GunicornWebWorker' : ''
+      appSettings: [
+        {
+          name: 'MicrosoftAppType'
+          value: 'UserAssignedMSI'
+        }
+        {
+          name: 'MicrosoftAppId'
+          value: msiClientID
+        }
+        {
+          name: 'MicrosoftAppTenantId'
+          value: tenant().tenantId
+        }
+        {
+          name: 'AZURE_OPENAI_API_ENDPOINT'
+          value: aiServices.properties.endpoint
+        }
+        {
+          name: 'AZURE_OPENAI_API_VERSION'
+          value: '2024-05-01-preview'
+        }
+        {
+          name: 'AZURE_SPEECH_API_ENDPOINT'
+          value: aiServices.properties.endpoint
+        }
+        {
+          name: 'AZURE_SPEECH_REGION'
+          value: aiServices.location
+        }
+        {
+          name: 'AZURE_SPEECH_RESOURCE_ID'
+          value: aiServices.id
+        }
+        {
+          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
+          value: 'true'
+        }
+        {
+          name: 'ENABLE_ORYX_BUILD'
+          value: 'true'
+        }
+        {
+          name: 'DEBUG'
+          value: 'true'
+        }
+      ]
+    }
+  }
+}
 
-resource appPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
-  name: 'pl-${appServiceName}'
+resource backendAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+  name: 'pl-${backendAppServiceName}'
   location: location
   tags: tags
   properties: {
@@ -193,14 +265,14 @@ resource appPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
       {
         name: 'private-endpoint-connection'
         properties: {
-          privateLinkServiceId: appService.id
+          privateLinkServiceId: backend.id
           groupIds: [ 'sites' ]
         }
       }
     ]
   }
   resource privateDnsZoneGroup 'privateDnsZoneGroups' = {
-    name: 'zg-${appServiceName}'
+    name: 'zg-${backendAppServiceName}'
     properties: {
       privateDnsZoneConfigs: [
         {
@@ -214,5 +286,41 @@ resource appPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
   }
 }
 
-output appName string = appService.name
-output hostName string = appService.properties.defaultHostName
+resource frontentdAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+  name: 'pl-${frontendAppServiceName}'
+  location: location
+  tags: tags
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'private-endpoint-connection'
+        properties: {
+          privateLinkServiceId: frontend.id
+          groupIds: [ 'sites' ]
+        }
+      }
+    ]
+  }
+  resource privateDnsZoneGroup 'privateDnsZoneGroups' = {
+    name: 'zg-${frontendAppServiceName}'
+    properties: {
+      privateDnsZoneConfigs: [
+        {
+          name: 'default'
+          properties: {
+            privateDnsZoneId: privateDnsZoneId
+          }
+        }
+      ]
+    }
+  }
+}
+
+output frontendAppName string = frontend.name
+output frontendHostName string = frontend.properties.defaultHostName
+
+output backendAppName string = backend.name
+output backendHostName string = backend.properties.defaultHostName

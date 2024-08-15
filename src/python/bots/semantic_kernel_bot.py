@@ -23,7 +23,7 @@ from data_models import ConversationData, ConversationTurn
 from .state_management_bot import StateManagementBot
 from utils import get_citations_card, replace_citations
 
-class TemplateBot(StateManagementBot):
+class SemanticKernelBot(StateManagementBot):
 
     def __init__(self, conversation_state: ConversationState, user_state: UserState, aoai_client: AzureOpenAI):
         super().__init__(conversation_state, user_state)

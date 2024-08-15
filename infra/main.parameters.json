@@ -18,7 +18,7 @@
       "value": "${AZURE_DEPLOY_SHARED_PRIVATE_LINKS}"
     },
     "myPrincipalId": {
-      "value": "${PRINCIPAL_ID}"
+      "value": "${AZURE_PRINCIPAL_ID}"
     },
     "allowedIpAddresses": {
       "value": "${ALLOWED_IP_ADDRESSES}"

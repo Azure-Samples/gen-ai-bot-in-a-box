@@ -57,6 +57,8 @@ param appName string = ''
 @description('Gen AI model name and version to deploy')
 @allowed(['gpt-4,1106-Preview', 'gpt-4,0125-Preview', 'gpt-4o,2024-05-13'])
 param model string
+@description('Tokens per minute capacity for the model. Units of 1000 (capacity = 10 means 10,000 tokens per minute)')
+param modelCapacity int
 @description('Language and version of the app to be deployed')
 @allowed(['python|3.10', 'node|14', 'dotnetcore|8.0'])
 param stack string
@@ -79,7 +81,8 @@ var names = {
   appPlan: !empty(appPlanName)
     ? appPlanName
     : '${abbrs.webSitesAppServiceEnvironment}${environmentName}-${uniqueSuffix}'
-  app: !empty(appName) ? appName : '${abbrs.webSitesAppService}${environmentName}-${uniqueSuffix}'
+  frontendApp: !empty(appName) ? appName : '${abbrs.webSitesAppService}${environmentName}-${uniqueSuffix}'
+  backendApp: !empty(appName) ? appName : '${abbrs.webSitesAppService}be-${environmentName}-${uniqueSuffix}'
   bot: !empty(botName) ? botName : '${abbrs.cognitiveServicesBot}${environmentName}-${uniqueSuffix}'
   vnet: '${abbrs.networkVirtualNetworks}${environmentName}-${uniqueSuffix}'
   privateLinkSubnet: '${abbrs.networkVirtualNetworksSubnets}${environmentName}-pl-${uniqueSuffix}'
@@ -286,6 +289,7 @@ module m_gpt 'modules/gptDeployment.bicep' = {
     aiServicesName: m_aiServices.outputs.aiServicesName
     modelName: modelName
     modelVersion: modelVersion
+    modelCapacity: modelCapacity
   }
 }
 
@@ -295,7 +299,8 @@ module m_app 'modules/appservice.bicep' = {
   params: {
     location: location
     appServicePlanName: names.appPlan
-    appServiceName: names.app
+    frontendAppServiceName: names.frontendApp
+    backendAppServiceName: names.backendApp
     linuxFxVersion: stack
     implementation: implementation
     tags: tags
@@ -318,7 +323,7 @@ module m_bot 'modules/botservice.bicep' = {
     location: 'global'
     botServiceName: names.bot
     tags: tags
-    endpoint: 'https://${m_app.outputs.hostName}/api/messages'
+    endpoint: 'https://${m_app.outputs.backendHostName}/api/messages'
     msiClientID: m_msi.outputs.msiClientID
     msiID: m_msi.outputs.msiID
     publicNetworkAccess: publicNetworkAccess
@@ -330,7 +335,10 @@ output AZURE_RESOURCE_GROUP_ID string = resourceGroup.id
 output AZURE_RESOURCE_GROUP_NAME string = resourceGroup.name
 output AZURE_OPENAI_DEPLOYMENT_NAME string = m_gpt.outputs.modelName
 output AI_SERVICES_ENDPOINT string = m_aiServices.outputs.aiServicesEndpoint
-output APP_NAME string = m_app.outputs.appName
-output APP_HOSTNAME string = m_app.outputs.hostName
+output FRONTEND_APP_NAME string = m_app.outputs.frontendAppName
+output FRONTEND_APP_HOSTNAME string = m_app.outputs.frontendHostName
+output BACKEND_APP_NAME string = m_app.outputs.backendAppName
+output BACKEND_APP_HOSTNAME string = m_app.outputs.backendHostName
 output BOT_NAME string = m_bot.outputs.name
 output STACK string = split(stack, '|')[0]
+output IMPLEMENTATION string = implementation

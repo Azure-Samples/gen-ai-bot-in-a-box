@@ -6,6 +6,7 @@ using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Microsoft.BotBuilderSamples;
 using Microsoft.Extensions.Configuration;
+using Services;
 
 namespace GenAIBot.Bots
 {

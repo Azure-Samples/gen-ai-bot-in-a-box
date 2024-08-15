@@ -1,21 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using Azure.AI.OpenAI;
-using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Builder.Dialogs;
-using Microsoft.Bot.Schema;
-using Microsoft.BotBuilderSamples;
-using Microsoft.Extensions.Configuration;
-using OpenAI.Assistants;
-using OpenAI.Chat;
-using OpenAI.Files;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 namespace GenAIBot.Bots
 {
@@ -23,13 +7,12 @@ namespace GenAIBot.Bots
     {
         private readonly string _instructions;
         private readonly string _welcomeMessage;
-        private readonly string _appUrl;
         private readonly AssistantClient _assistantClient;
         private readonly ChatClient _chatClient;
         private readonly FileClient _fileClient;
         private readonly HttpClient _httpClient;
         private readonly string _assistantId;
-        
+
         public AssistantBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient, HttpClient httpClient, T dialog)
             : base(config, conversationState, userState, dialog)
         {
@@ -40,11 +23,6 @@ namespace GenAIBot.Bots
             _assistantId = config["AZURE_OPENAI_ASSISTANT_ID"];
             _instructions = config["LLM_INSTRUCTIONS"];
             _welcomeMessage = config.GetValue("LLM_WELCOME_MESSAGE", "Hello and welcome to the Assistant Bot Dotnet!");
-            _appUrl = config.GetValue("APP_HOSTNAME", "http://localhost:3978");
-            if (!_appUrl.StartsWith("http"))
-            {
-                _appUrl = $"https://{_appUrl}";
-            }
         }
 
         // Modify onMembersAdded as needed
@@ -54,7 +32,7 @@ namespace GenAIBot.Bots
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text(_welcomeMessage), cancellationToken);
+                    await turnContext.SendActivityAsync(MessageFactory.Text(_welcomeMessage, _welcomeMessage), cancellationToken);
                 }
             }
             await HandleLogin(turnContext, cancellationToken);
@@ -133,98 +111,73 @@ namespace GenAIBot.Bots
 
             // Send user message to thread
             _assistantClient.CreateMessage(thread, new List<MessageContent>() { MessageContent.FromText(turnContext.Activity.Text) });
-
+            
             // Run thread
-            // var run = _assistantClient.CreateRunStreamingAsync(
-            //     conversationData.ThreadId,
-            //     _assistantId,
-            //     new RunCreationOptions()
-            //     {
-            //         InstructionsOverride = _instructions
-            //     }
-            // );
-            var run = (await _assistantClient.CreateRunAsync(
+            var run = _assistantClient.CreateRunStreamingAsync(
                 conversationData.ThreadId,
                 _assistantId,
                 new RunCreationOptions()
                 {
                     InstructionsOverride = _instructions
                 }
-            )).Value;
+            );
 
-            // Start streaming response
-            // if type(event) == ThreadMessageDelta:
-            //     deltaBlock = event.data.delta.content[0]
-            //     if type(deltaBlock) == TextDeltaBlock:
-            //         current_message += deltaBlock.text.value
-            //     elif type(deltaBlock) == ImageFileDeltaBlock: 
-            //         current_message += f"![{deltaBlock.image_file.file_id}](/api/files/{deltaBlock.image_file.file_id})"
-
-            // await foreach (StreamingUpdate evt in run)
-            // {
-            //     if (evt is MessageContentUpdate)
-            //     {
-            //         Console.WriteLine(JsonSerializer.Serialize((RunUpdate)evt));
-            //     }
-            //     else
-            //     {
-            //         Console.WriteLine(evt.GetType());
-            //     }
-            // }
-
-            while (
-                run.Status != RunStatus.Completed &&
-                run.Status != RunStatus.Failed)
-            {
-                run = _assistantClient.GetRun(conversationData.ThreadId, run.Id).Value;
-                if (run.Status == RunStatus.RequiresAction)
-                {
-                    List<ToolOutput> toolOutputs = new();
-                    foreach (var toolCall in run.RequiredActions)
-                    {
-                        var argumentsString = toolCall.FunctionArguments;
-                        var arguments = JsonSerializer.Deserialize<Dictionary<string, string>>(argumentsString, new JsonSerializerOptions());
-                        if (toolCall.FunctionName == "image_query")
-                        {
-                            var response = await ImageQuery(conversationData, arguments["query"], arguments["image_name"]);
-                            toolOutputs.Add(new ToolOutput(toolCall.ToolCallId, response));
-                        }
-                    }
-                    await _assistantClient.SubmitToolOutputsToRunAsync(conversationData.ThreadId, run.Id, toolOutputs, cancellationToken);
-                }
-                Thread.Sleep(1000);
-            }
-
-            var messages = _assistantClient.GetMessages(conversationData.ThreadId);
-
-            foreach (var message in messages)
-            {
-                // Stop on the last user message
-                if (message.Role == MessageRole.User)
-                    break;
-                foreach (MessageContent item in message.Content)
-                {
-                    if (!string.IsNullOrEmpty(item.Text))
-                    {
-                        var response = item.Text;
-                        // Add assistant message to history
-                        conversationData.AddTurn("assistant", response);
-
-                        // Respond back to user
-                        await turnContext.SendActivityAsync(MessageFactory.Text(response), cancellationToken);
-                    }
-                    else if (!string.IsNullOrEmpty(item.ImageFileId))
-                    {
-                        var response = $"![{item.ImageFileId}]({_appUrl}/api/files/{item.ImageFileId})";
-                        // Add assistant message to history
-                        conversationData.AddTurn("assistant", response);
-                        // Respond back to user
-                        await turnContext.SendActivityAsync(MessageFactory.Text(response), cancellationToken);
-                    }
-                }
-            }
+            // Process run streaming
+            await ProcessRunStreaming(run, conversationData, turnContext, cancellationToken);
+            
             return true;
 
+        }
+
+        protected async Task ProcessRunStreaming(AsyncResultCollection<StreamingUpdate> run, ConversationData conversationData, ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
+        {
+            // Start streaming response
+            var currentMessage = "";
+            List<ToolOutput> toolOutputs = new();
+            ThreadRun currentRun = null;
+            await foreach (StreamingUpdate evt in run)
+            {
+                if (evt is RunUpdate)
+                {
+                    var runUpdate = (RunUpdate)evt;
+                    currentRun = runUpdate.Value;
+                }
+                else if (evt is RequiredActionUpdate)
+                {
+                    var requiredActionUpdate = (RequiredActionUpdate)evt;
+                    var argumentsString = requiredActionUpdate.FunctionArguments;
+                    var arguments = JsonSerializer.Deserialize<Dictionary<string, string>>(argumentsString, new JsonSerializerOptions());
+                    if (requiredActionUpdate.FunctionName == "image_query")
+                    {
+                        var response = await ImageQuery(conversationData, arguments["query"], arguments["image_name"]);
+                        toolOutputs.Add(new ToolOutput(requiredActionUpdate.ToolCallId, response));
+                    }
+                }
+                else if (evt is MessageContentUpdate)
+                {
+                    var messageContentUpdate = (MessageContentUpdate)evt;
+                    if (messageContentUpdate.Text != null)
+                    {
+                        currentMessage += messageContentUpdate.Text;
+                    }
+                    else if (messageContentUpdate.ImageFileId != null)
+                    {
+                        currentMessage += $"![{messageContentUpdate.ImageFileId}](/api/files/{messageContentUpdate.ImageFileId})";
+                    }
+                }
+            }
+            // Recursively process the run with the tool outputs
+            if (toolOutputs.Count > 0) {
+                var newRun = _assistantClient.SubmitToolOutputsToRunStreamingAsync(currentRun, toolOutputs);
+                await ProcessRunStreaming(newRun, conversationData, turnContext, cancellationToken);
+                return;
+            }
+
+            // Add assistant message to history
+            conversationData.AddTurn("assistant", currentMessage);
+
+            // Respond back to user
+            await turnContext.SendActivityAsync(MessageFactory.Text(currentMessage, currentMessage), cancellationToken);
         }
 
         protected async Task<bool> HandleFileUploads(ITurnContext<IMessageActivity> turnContext, AssistantThread thread, ConversationData conversationData, CancellationToken cancellationToken)
@@ -255,12 +208,12 @@ namespace GenAIBot.Bots
                     await _assistantClient.CreateMessageAsync(thread, [$"File uploaded: {attachment.Name}"]);
                     // Ask whether to add file to a tool
                     await turnContext.SendActivityAsync(MessageFactory.SuggestedActions(
-                        cardActions: new CardAction[]
-                        {
+                        cardActions:
+                        [
                             new CardAction(title: "Code Interpreter", type: ActionTypes.ImBack, value: "#UPLOAD_FILE#code_interpreter#" + attachment.Name),
                             new CardAction( title: "File Search", type: ActionTypes.ImBack, value: "#UPLOAD_FILE#file_search#" + attachment.Name),
                             new CardAction( title: "Both", type: ActionTypes.ImBack, value: "#UPLOAD_FILE#code_interpreter,file_search#" + attachment.Name),
-                        }, 
+                        ],
                         "Add to a tool? (ignore if not needed)",
                         null,
                         null

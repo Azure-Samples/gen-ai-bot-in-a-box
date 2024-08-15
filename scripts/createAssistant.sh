@@ -9,6 +9,10 @@ done <<EOF
 $(azd env get-values)
 EOF
 
+if [ "$IMPLEMENTATION" != "assistant" ]; then
+    exit 0
+fi
+
 OAUTH_TOKEN=$(az account get-access-token --scope https://cognitiveservices.azure.com/.default --query accessToken -o tsv)
 AOAI_ASSISTANT_NAME="assistant_in_a_box"
 ASSISTANT_ID=$(curl "$AI_SERVICES_ENDPOINT/openai/assistants?api-version=2024-07-01-preview" \
@@ -18,7 +22,7 @@ if [ "$ASSISTANT_ID" == "null" ]; then
     ASSISTANT_ID=
 else
     ASSISTANT_ID=/$ASSISTANT_ID
-fi   
+fi
 
 echo '{
     "name":"'$AOAI_ASSISTANT_NAME'",
@@ -38,6 +42,6 @@ ASSISTANT_ID=$(curl "$AI_SERVICES_ENDPOINT/openai/assistants?api-version=2024-07
   -H "Authorization: Bearer $OAUTH_TOKEN"|\
   jq -r '[.data[] | select( .name == "'$AOAI_ASSISTANT_NAME'")][0] | .id')
 
-az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $APP_NAME --settings AZURE_OPENAI_ASSISTANT_ID=$ASSISTANT_ID
+az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $BACKEND_APP_NAME --settings AZURE_OPENAI_ASSISTANT_ID=$ASSISTANT_ID
 
 azd env set AZURE_ASSISTANT_ID $ASSISTANT_ID

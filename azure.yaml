@@ -2,31 +2,28 @@
 
 name: gen-ai-bot-in-a-box
 hooks:
-  preup:
-    windows:
-      shell: pwsh
-      run: azd env set PRINCIPAL_ID $(az ad signed-in-user show --query id -o tsv)
-    posix:
-      shell: sh
-      run: azd env set PRINCIPAL_ID $(az ad signed-in-user show --query id -o tsv)
   # Bot Framework Python doesn't support MSI - switch to single tenant app
   predeploy: 
     windows:
       shell: pwsh
-      run: pwsh ./scripts/configureSingleTenantApp.ps1
+      run: pwsh ./scripts/configureSingleTenantApp.ps1 && pwsh ./scripts/createAssistant.ps1
     posix:
       shell: sh
-      run: sh ./scripts/configureSingleTenantApp.sh
+      run: sh ./scripts/configureSingleTenantApp.sh && sh ./scripts/createAssistant.sh
 services:
-    genai-bot-app:
+    genai-bot-app-frontend:
+        project: src/webchat
+        host: appservice
+        language: js
+    genai-bot-app-backend:
         project: src/dotnet
         host: appservice
         language: dotnet
-    # genai-bot-app:
+    # genai-bot-app-backend:
     #     project: src/node
     #     host: appservice
     #     language: js
-    # genai-bot-app:
+    # genai-bot-app-backend:
     #     project: src/python
     #     host: appservice
     #     language: python

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.29.47.4906",
-      "templateHash": "17194242089014619041"
+      "templateHash": "16181111582418211004"
     }
   },
   "parameters": {
@@ -171,6 +171,12 @@
       ],
       "metadata": {
         "description": "Gen AI model name and version to deploy"
+      }
+    },
+    "modelCapacity": {
+      "type": "int",
+      "metadata": {
+        "description": "Tokens per minute capacity for the model. Units of 1000 (capacity = 10 means 10,000 tokens per minute)"
       }
     },
     "stack": {
@@ -348,7 +354,8 @@
       "msi": "[if(not(empty(parameters('msiName'))), parameters('msiName'), format('{0}{1}-{2}', variables('abbrs').managedIdentityUserAssignedIdentities, parameters('environmentName'), variables('uniqueSuffix')))]",
       "cosmos": "[if(not(empty(parameters('cosmosName'))), parameters('cosmosName'), format('{0}{1}-{2}', variables('abbrs').documentDBDatabaseAccounts, parameters('environmentName'), variables('uniqueSuffix')))]",
       "appPlan": "[if(not(empty(parameters('appPlanName'))), parameters('appPlanName'), format('{0}{1}-{2}', variables('abbrs').webSitesAppServiceEnvironment, parameters('environmentName'), variables('uniqueSuffix')))]",
-      "app": "[if(not(empty(parameters('appName'))), parameters('appName'), format('{0}{1}-{2}', variables('abbrs').webSitesAppService, parameters('environmentName'), variables('uniqueSuffix')))]",
+      "frontendApp": "[if(not(empty(parameters('appName'))), parameters('appName'), format('{0}{1}-{2}', variables('abbrs').webSitesAppService, parameters('environmentName'), variables('uniqueSuffix')))]",
+      "backendApp": "[if(not(empty(parameters('appName'))), parameters('appName'), format('{0}be-{1}-{2}', variables('abbrs').webSitesAppService, parameters('environmentName'), variables('uniqueSuffix')))]",
       "bot": "[if(not(empty(parameters('botName'))), parameters('botName'), format('{0}{1}-{2}', variables('abbrs').cognitiveServicesBot, parameters('environmentName'), variables('uniqueSuffix')))]",
       "vnet": "[format('{0}{1}-{2}', variables('abbrs').networkVirtualNetworks, parameters('environmentName'), variables('uniqueSuffix'))]",
       "privateLinkSubnet": "[format('{0}{1}-pl-{2}', variables('abbrs').networkVirtualNetworksSubnets, parameters('environmentName'), variables('uniqueSuffix'))]",
@@ -757,7 +764,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "3836825972354755895"
+              "templateHash": "9544431106754674388"
             }
           },
           "parameters": {
@@ -917,7 +924,7 @@
             },
             {
               "copy": {
-                "name": "writerAccess",
+                "name": "openaiAccess",
                 "count": "[length(parameters('grantAccessTo'))]"
               },
               "condition": "[not(empty(parameters('grantAccessTo')[copyIndex()].id))]",
@@ -927,6 +934,25 @@
               "name": "[guid(parameters('grantAccessTo')[copyIndex()].id, resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), resourceId('Microsoft.Authorization/roleDefinitions', 'a001fd3d-188f-4b5d-821b-7da978bf7442'))]",
               "properties": {
                 "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', 'a001fd3d-188f-4b5d-821b-7da978bf7442')]",
+                "principalId": "[parameters('grantAccessTo')[copyIndex()].id]",
+                "principalType": "[parameters('grantAccessTo')[copyIndex()].type]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName'))]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "speechAccess",
+                "count": "[length(parameters('grantAccessTo'))]"
+              },
+              "condition": "[not(empty(parameters('grantAccessTo')[copyIndex()].id))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.CognitiveServices/accounts/{0}', parameters('aiServicesName'))]",
+              "name": "[guid(parameters('grantAccessTo')[copyIndex()].id, resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), resourceId('Microsoft.Authorization/roleDefinitions', 'f2dc8367-1007-4938-bd23-fe263f013447'))]",
+              "properties": {
+                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', 'f2dc8367-1007-4938-bd23-fe263f013447')]",
                 "principalId": "[parameters('grantAccessTo')[copyIndex()].id]",
                 "principalType": "[parameters('grantAccessTo')[copyIndex()].type]"
               },
@@ -1681,6 +1707,9 @@
           },
           "modelVersion": {
             "value": "[variables('modelVersion')]"
+          },
+          "modelCapacity": {
+            "value": "[parameters('modelCapacity')]"
           }
         },
         "template": {
@@ -1761,8 +1790,11 @@
           "appServicePlanName": {
             "value": "[variables('names').appPlan]"
           },
-          "appServiceName": {
-            "value": "[variables('names').app]"
+          "frontendAppServiceName": {
+            "value": "[variables('names').frontendApp]"
+          },
+          "backendAppServiceName": {
+            "value": "[variables('names').backendApp]"
           },
           "linuxFxVersion": {
             "value": "[parameters('stack')]"
@@ -1804,7 +1836,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "13570481334253016569"
+              "templateHash": "4711076311117924292"
             }
           },
           "parameters": {
@@ -1814,7 +1846,10 @@
             "appServicePlanName": {
               "type": "string"
             },
-            "appServiceName": {
+            "backendAppServiceName": {
+              "type": "string"
+            },
+            "frontendAppServiceName": {
               "type": "string"
             },
             "msiID": {
@@ -1863,7 +1898,7 @@
             {
               "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
               "apiVersion": "2021-05-01",
-              "name": "[format('{0}/{1}', format('pl-{0}', parameters('appServiceName')), format('zg-{0}', parameters('appServiceName')))]",
+              "name": "[format('{0}/{1}', format('pl-{0}', parameters('backendAppServiceName')), format('zg-{0}', parameters('backendAppServiceName')))]",
               "properties": {
                 "privateDnsZoneConfigs": [
                   {
@@ -1875,7 +1910,25 @@
                 ]
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Network/privateEndpoints', format('pl-{0}', parameters('appServiceName')))]"
+                "[resourceId('Microsoft.Network/privateEndpoints', format('pl-{0}', parameters('backendAppServiceName')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2021-05-01",
+              "name": "[format('{0}/{1}', format('pl-{0}', parameters('frontendAppServiceName')), format('zg-{0}', parameters('frontendAppServiceName')))]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "default",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('privateDnsZoneId')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', format('pl-{0}', parameters('frontendAppServiceName')))]"
               ]
             },
             {
@@ -1896,9 +1949,9 @@
             {
               "type": "Microsoft.Web/sites",
               "apiVersion": "2023-12-01",
-              "name": "[parameters('appServiceName')]",
+              "name": "[parameters('backendAppServiceName')]",
               "location": "[parameters('location')]",
-              "tags": "[union(parameters('tags'), createObject('azd-service-name', 'genai-bot-app'))]",
+              "tags": "[union(parameters('tags'), createObject('azd-service-name', 'genai-bot-app-backend'))]",
               "identity": {
                 "type": "UserAssigned",
                 "userAssignedIdentities": {
@@ -1943,6 +1996,7 @@
                   "scmIpSecurityRestrictionsDefaultAction": "Allow",
                   "http20Enabled": true,
                   "linuxFxVersion": "[parameters('linuxFxVersion')]",
+                  "webSocketsEnabled": true,
                   "appCommandLine": "[if(startsWith(parameters('linuxFxVersion'), 'python'), 'gunicorn --bind 0.0.0.0 --timeout 600 app:app --worker-class aiohttp.GunicornWebWorker', '')]",
                   "appSettings": [
                     {
@@ -2026,16 +2080,16 @@
                       "value": "10"
                     },
                     {
+                      "name": "LLM_WELCOME_MESSAGE",
+                      "value": "Hello and welcome!"
+                    },
+                    {
                       "name": "LLM_INSTRUCTIONS",
                       "value": "Answer the questions as accurately as possible using the provided functions."
                     },
                     {
-                      "name": "APP_HOSTNAME",
-                      "value": "[format('{0}.azurewebsites.net', parameters('appServiceName'))]"
-                    },
-                    {
                       "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-                      "value": "[if(startsWith(parameters('linuxFxVersion'), 'dotnet'), 'false', 'true')]"
+                      "value": "true"
                     },
                     {
                       "name": "ENABLE_ORYX_BUILD",
@@ -2053,9 +2107,84 @@
               ]
             },
             {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2023-12-01",
+              "name": "[parameters('frontendAppServiceName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', parameters('msiID'))]": {}
+                }
+              },
+              "tags": "[union(parameters('tags'), createObject('azd-service-name', 'genai-bot-app-frontend'))]",
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
+                "httpsOnly": true,
+                "virtualNetworkSubnetId": "[parameters('appSubnetId')]",
+                "siteConfig": {
+                  "publicNetworkAccess": "Enabled",
+                  "ipSecurityRestrictionsDefaultAction": "Allow",
+                  "scmIpSecurityRestrictionsDefaultAction": "Allow",
+                  "http20Enabled": true,
+                  "linuxFxVersion": "NODE|20-lts",
+                  "appCommandLine": "[if(startsWith(parameters('linuxFxVersion'), 'python'), 'gunicorn --bind 0.0.0.0 --timeout 600 app:app --worker-class aiohttp.GunicornWebWorker', '')]",
+                  "appSettings": [
+                    {
+                      "name": "MicrosoftAppType",
+                      "value": "UserAssignedMSI"
+                    },
+                    {
+                      "name": "MicrosoftAppId",
+                      "value": "[parameters('msiClientID')]"
+                    },
+                    {
+                      "name": "MicrosoftAppTenantId",
+                      "value": "[tenant().tenantId]"
+                    },
+                    {
+                      "name": "AZURE_OPENAI_API_ENDPOINT",
+                      "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), '2023-05-01').endpoint]"
+                    },
+                    {
+                      "name": "AZURE_OPENAI_API_VERSION",
+                      "value": "2024-05-01-preview"
+                    },
+                    {
+                      "name": "AZURE_SPEECH_API_ENDPOINT",
+                      "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), '2023-05-01').endpoint]"
+                    },
+                    {
+                      "name": "AZURE_SPEECH_REGION",
+                      "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName')), '2023-05-01', 'full').location]"
+                    },
+                    {
+                      "name": "AZURE_SPEECH_RESOURCE_ID",
+                      "value": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('aiServicesName'))]"
+                    },
+                    {
+                      "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+                      "value": "true"
+                    },
+                    {
+                      "name": "ENABLE_ORYX_BUILD",
+                      "value": "true"
+                    },
+                    {
+                      "name": "DEBUG",
+                      "value": "true"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]"
+              ]
+            },
+            {
               "type": "Microsoft.Network/privateEndpoints",
               "apiVersion": "2021-05-01",
-              "name": "[format('pl-{0}', parameters('appServiceName'))]",
+              "name": "[format('pl-{0}', parameters('backendAppServiceName'))]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "properties": {
@@ -2066,7 +2195,7 @@
                   {
                     "name": "private-endpoint-connection",
                     "properties": {
-                      "privateLinkServiceId": "[resourceId('Microsoft.Web/sites', parameters('appServiceName'))]",
+                      "privateLinkServiceId": "[resourceId('Microsoft.Web/sites', parameters('backendAppServiceName'))]",
                       "groupIds": [
                         "sites"
                       ]
@@ -2075,18 +2204,52 @@
                 ]
               },
               "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', parameters('appServiceName'))]"
+                "[resourceId('Microsoft.Web/sites', parameters('backendAppServiceName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2021-05-01",
+              "name": "[format('pl-{0}', parameters('frontendAppServiceName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('privateEndpointSubnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "private-endpoint-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Web/sites', parameters('frontendAppServiceName'))]",
+                      "groupIds": [
+                        "sites"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('frontendAppServiceName'))]"
               ]
             }
           ],
           "outputs": {
-            "appName": {
+            "frontendAppName": {
               "type": "string",
-              "value": "[parameters('appServiceName')]"
+              "value": "[parameters('frontendAppServiceName')]"
             },
-            "hostName": {
+            "frontendHostName": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('appServiceName')), '2023-12-01').defaultHostName]"
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('frontendAppServiceName')), '2023-12-01').defaultHostName]"
+            },
+            "backendAppName": {
+              "type": "string",
+              "value": "[parameters('backendAppServiceName')]"
+            },
+            "backendHostName": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('backendAppServiceName')), '2023-12-01').defaultHostName]"
             }
           }
         }
@@ -2123,7 +2286,7 @@
             "value": "[parameters('tags')]"
           },
           "endpoint": {
-            "value": "[format('https://{0}/api/messages', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_app'), '2022-09-01').outputs.hostName.value)]"
+            "value": "[format('https://{0}/api/messages', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_app'), '2022-09-01').outputs.backendHostName.value)]"
           },
           "msiClientID": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_msi'), '2022-09-01').outputs.msiClientID.value]"
@@ -2236,13 +2399,21 @@
       "type": "string",
       "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices'), '2022-09-01').outputs.aiServicesEndpoint.value]"
     },
-    "APP_NAME": {
+    "FRONTEND_APP_NAME": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_app'), '2022-09-01').outputs.appName.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_app'), '2022-09-01').outputs.frontendAppName.value]"
     },
-    "APP_HOSTNAME": {
+    "FRONTEND_APP_HOSTNAME": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_app'), '2022-09-01').outputs.hostName.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_app'), '2022-09-01').outputs.frontendHostName.value]"
+    },
+    "BACKEND_APP_NAME": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_app'), '2022-09-01').outputs.backendAppName.value]"
+    },
+    "BACKEND_APP_HOSTNAME": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_app'), '2022-09-01').outputs.backendHostName.value]"
     },
     "BOT_NAME": {
       "type": "string",
@@ -2251,6 +2422,10 @@
     "STACK": {
       "type": "string",
       "value": "[split(parameters('stack'), '|')[0]]"
+    },
+    "IMPLEMENTATION": {
+      "type": "string",
+      "value": "[parameters('implementation')]"
     }
   }
 }

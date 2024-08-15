@@ -11,4 +11,4 @@ $envValues.Split("`n") | ForEach-Object {
 $SECRET = az bot directline show --name $BOT_NAME --resource-group $AZURE_RESOURCE_GROUP_NAME --with-secrets --query "properties.properties.sites[0].key" -o tsv
 
 # Set on App Service instance
-az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $APP_NAME --settings DIRECT_LINE_SECRET=$SECRET
+az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME --settings DIRECT_LINE_SECRET=$SECRET

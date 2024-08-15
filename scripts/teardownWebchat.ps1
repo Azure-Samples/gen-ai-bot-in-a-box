@@ -8,4 +8,4 @@ $envValues.Split("`n") | ForEach-Object {
 }
 
 # Unset Directline secret on App Service instance
-az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $APP_NAME --settings DIRECT_LINE_SECRET=
+az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME --settings DIRECT_LINE_SECRET=

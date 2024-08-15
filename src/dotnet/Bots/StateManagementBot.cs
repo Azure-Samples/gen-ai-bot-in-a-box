@@ -1,17 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Builder.Dialogs;
-using Microsoft.Bot.Builder.Teams;
-using Microsoft.Bot.Connector.Authentication;
-using Microsoft.Bot.Schema;
-using Microsoft.Extensions.Configuration;
-
 namespace Microsoft.BotBuilderSamples
 {
     public class StateManagementBot<T> : TeamsActivityHandler where T : Dialog
@@ -35,7 +24,6 @@ namespace Microsoft.BotBuilderSamples
         public override async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default(CancellationToken))
         {
             await base.OnTurnAsync(turnContext, cancellationToken);
-
             // Save any state changes that might have occurred during the turn.
             await _conversationState.SaveChangesAsync(turnContext, false, cancellationToken);
             await _userState.SaveChangesAsync(turnContext, false, cancellationToken);
@@ -50,12 +38,8 @@ namespace Microsoft.BotBuilderSamples
         {
             if (!_sso_enabled)
             {
-                await turnContext.SendActivityAsync("Warning: Bot authentication is disabled.");
                 return true;
             }
-
-            var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
-            var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
 
             var userStateAccessors = _userState.CreateProperty<UserProfile>(nameof(UserProfile));
             var userProfile = await userStateAccessors.GetAsync(turnContext, () => new UserProfile());
