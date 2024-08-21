@@ -2,8 +2,7 @@
 # Licensed under the MIT License.
 import os
 import jwt
-from botbuilder.core import ActivityHandler, ConversationState, Turn_context, UserState
-from botframework.connector.auth.user_token_client import user_token_client
+from botbuilder.core import ActivityHandler, ConversationState, TurnContext, UserState
 from botbuilder.dialogs import Dialog
 
 
@@ -18,13 +17,13 @@ class StateManagementBot(ActivityHandler):
         self.sso_config_name = os.getenv("SSO_CONFIG_NAME", "default")
 
 
-    async def on_turn(self, turn_context: Turn_context):
+    async def on_turn(self, turn_context: TurnContext):
         await super().on_turn(turn_context)
         # Save any state changes. The load happened during the execution of the Dialog.
         await self.conversation_state.save_changes(turn_context)
         await self.user_state.save_changes(turn_context)
     
-    async def handle_login(self, turn_context: Turn_context):
+    async def handle_login(self, turn_context: TurnContext):
         if not self.sso_enabled:
             return True
 

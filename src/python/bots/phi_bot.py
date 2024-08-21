@@ -3,6 +3,7 @@
 
 from botbuilder.core import ConversationState, TurnContext, UserState
 from botbuilder.schema import ChannelAccount
+from botbuilder.dialogs import Dialog
 
 from services import Phi
 from data_models import ConversationData
@@ -10,8 +11,8 @@ from .state_management_bot import StateManagementBot
 
 class PhiBot(StateManagementBot):
 
-    def __init__(self, conversation_state: ConversationState, user_state: UserState, phi_client: Phi):
-        super().__init__(conversation_state, user_state)
+    def __init__(self, conversation_state: ConversationState, user_state: UserState, phi_client: Phi, dialog: Dialog):
+        super().__init__(conversation_state, user_state, dialog)
         self._phi_client = phi_client
 
     async def on_members_added_activity(self, members_added: list[ChannelAccount], turn_context: TurnContext):

@@ -6,15 +6,15 @@ from botbuilder.dialogs import (
     WaterfallDialog,
     WaterfallStepContext,
     DialogTurnResult,
+    ComponentDialog
 )
 from botbuilder.dialogs.prompts import OAuthPrompt, OAuthPromptSettings, ConfirmPrompt
 
-from dialogs import LogoutDialog
 
-
-class LoginDialog(LogoutDialog):
-    def __init__(self, connection_name: str):
-        super(LoginDialog, self).__init__(LoginDialog.__name__, connection_name)
+class LoginDialog(ComponentDialog):
+    def __init__(self):
+        super(LoginDialog, self).__init__(LoginDialog.__name__)
+        self.connection_name = os.getenv("SSO_CONFIG_NAME", "default")
         self.login_success_message = os.getenv("SSO_MESSAGE_SUCCESS", "Login success")
         self.login_failed_message = os.getenv("SSO_MESSAGE_FAILED", "Login failed")
 
@@ -22,7 +22,7 @@ class LoginDialog(LogoutDialog):
             OAuthPrompt(
                 OAuthPrompt.__name__,
                 OAuthPromptSettings(
-                    connection_name=connection_name,
+                    connection_name=self.connection_name,
                     text=os.getenv("SSO_MESSAGE_TITLE"),
                     title=os.getenv("SSO_MESSAGE_PROMPT"),
                     timeout=300000,

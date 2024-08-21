@@ -6,6 +6,7 @@ import requests
 
 from botbuilder.core import ConversationState, TurnContext, UserState
 from botbuilder.schema import ChannelAccount
+from botbuilder.dialogs import Dialog
 
 from openai import AzureOpenAI
 from openai.types.beta.assistant_stream_event import ThreadMessageDelta
@@ -16,8 +17,8 @@ from .state_management_bot import StateManagementBot
 
 class AssistantBot(StateManagementBot):
 
-    def __init__(self, conversation_state: ConversationState, user_state: UserState, aoai_client: AzureOpenAI):
-        super().__init__(conversation_state, user_state)
+    def __init__(self, conversation_state: ConversationState, user_state: UserState, aoai_client: AzureOpenAI, dialog: Dialog):
+        super().__init__(conversation_state, user_state, dialog)
         self.aoai_client = aoai_client
 
     async def on_members_added_activity(self, members_added: list[ChannelAccount], turn_context: TurnContext):

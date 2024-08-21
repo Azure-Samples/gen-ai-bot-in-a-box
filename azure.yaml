@@ -1,15 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
 
 name: gen-ai-bot-in-a-box
-hooks:
-  # Bot Framework Python doesn't support MSI - switch to single tenant app
-  predeploy: 
-    windows:
-      shell: pwsh
-      run: pwsh ./scripts/configureSingleTenantApp.ps1
-    posix:
-      shell: sh
-      run: sh ./scripts/configureSingleTenantApp.sh
 services:
     genai-bot-app-frontend:
         project: src/webchat

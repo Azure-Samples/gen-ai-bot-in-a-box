@@ -28,6 +28,7 @@ from services import Phi
 from dotenv import load_dotenv
 
 from bots import AssistantBot, ChatCompletionBot, PhiBot, SemanticKernelBot
+from dialogs import LoginDialog
 from config import DefaultConfig
 
 load_dotenv()
@@ -87,14 +88,15 @@ user_state = UserState(storage)
 conversation_state = ConversationState(storage)
 
 # Create the bot
+dialog = LoginDialog()
 bot = None
 engine = os.getenv("GEN_AI_IMPLEMENTATION")
 if engine == "chat-completions":
-    bot = ChatCompletionBot(conversation_state, user_state, aoai_client)
+    bot = ChatCompletionBot(conversation_state, user_state, aoai_client, dialog)
 elif engine == "assistant":
-    bot = AssistantBot(conversation_state, user_state, aoai_client)
+    bot = AssistantBot(conversation_state, user_state, aoai_client, dialog)
 elif engine == "semantic-kernel":
-    bot = SemanticKernelBot(conversation_state, user_state, aoai_client)
+    bot = SemanticKernelBot(conversation_state, user_state, aoai_client, dialog)
 elif engine == "langchain":
     raise ValueError("Langchain is not supported in this version.")
 elif engine == "phi":

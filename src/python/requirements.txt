@@ -6,6 +6,7 @@ azure-search==1.0.0b2
 azure-search-documents==11.5.1
 botbuilder-azure==4.16.1
 botbuilder-core==4.16.1
+botbuilder-dialogs==4.16.1
 botbuilder-integration-aiohttp==4.16.1
 python-dotenv==1.0.1
 openai==1.41.0

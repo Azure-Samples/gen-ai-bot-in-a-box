@@ -4,6 +4,7 @@
 import os
 from botbuilder.core import ConversationState, TurnContext, UserState, CardFactory
 from botbuilder.schema import ChannelAccount, Activity, ActivityTypes
+from botbuilder.dialogs import Dialog
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import AzureOpenAI
 import semantic_kernel as sk
@@ -25,8 +26,8 @@ from utils import get_citations_card, replace_citations
 
 class SemanticKernelBot(StateManagementBot):
 
-    def __init__(self, conversation_state: ConversationState, user_state: UserState, aoai_client: AzureOpenAI):
-        super().__init__(conversation_state, user_state)
+    def __init__(self, conversation_state: ConversationState, user_state: UserState, aoai_client: AzureOpenAI, dialog: Dialog):
+        super().__init__(conversation_state, user_state, dialog)
         self._aoai_client = aoai_client
 
     # Modify onMembersAdded as needed

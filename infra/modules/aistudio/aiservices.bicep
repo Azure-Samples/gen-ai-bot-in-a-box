@@ -104,8 +104,8 @@ resource cognitiveServicesOpenAIContributor 'Microsoft.Authorization/roleDefinit
   name: 'a001fd3d-188f-4b5d-821b-7da978bf7442'
 }
 
-resource cognitiveServicesSpeechContributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-  name: 'f2dc8367-1007-4938-bd23-fe263f013447'
+resource cognitiveServicesUser 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: 'a97b65f3-24c7-4388-baec-2e87135dc908'
 }
 
 resource openaiAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
@@ -120,12 +120,12 @@ resource openaiAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   }
 ]
 
-resource speechAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+resource userAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for principal in grantAccessTo: if (!empty(principal.id)) {
-    name: guid(principal.id, aiServices.id, cognitiveServicesSpeechContributor.id)
+    name: guid(principal.id, aiServices.id, cognitiveServicesUser.id)
     scope: aiServices
     properties: {
-      roleDefinitionId: cognitiveServicesSpeechContributor.id
+      roleDefinitionId: cognitiveServicesUser.id
       principalId: principal.id
       principalType: principal.type
     }
