@@ -14,6 +14,7 @@ param searchName string
 param aiServicesName string
 param cosmosName string
 
+param publicNetworkAccess string
 param privateEndpointSubnetId string
 param appSubnetId string
 param privateDnsZoneId string
@@ -58,7 +59,7 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     httpsOnly: true
-    virtualNetworkSubnetId: appSubnetId
+    virtualNetworkSubnetId: !empty(appSubnetId) ? appSubnetId : null
     siteConfig: {
       ipSecurityRestrictions: [
         // Allow Bot Service
@@ -195,7 +196,7 @@ resource frontend 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     httpsOnly: true
-    virtualNetworkSubnetId: appSubnetId
+    virtualNetworkSubnetId: !empty(appSubnetId) ? appSubnetId : null
     siteConfig: {
       publicNetworkAccess: 'Enabled'
       ipSecurityRestrictionsDefaultAction: 'Allow'
@@ -253,7 +254,7 @@ resource frontend 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
-resource backendAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+resource backendAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = if (publicNetworkAccess == 'Disabled') {
   name: 'pl-${backendAppServiceName}'
   location: location
   tags: tags
@@ -286,7 +287,7 @@ resource backendAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-0
   }
 }
 
-resource frontentdAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+resource frontentdAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = if (publicNetworkAccess == 'Disabled') {
   name: 'pl-${frontendAppServiceName}'
   location: location
   tags: tags

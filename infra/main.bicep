@@ -32,6 +32,8 @@ param appSubnetAddressPrefix string = '10.0.1.0/24'
 // AI Services configurations
 @description('Name of the AI Services account. Automatically generated if left blank')
 param aiServicesName string = ''
+@description('Name of the AI Hub resource. Automatically generated if left blank')
+param aiHubName string = ''
 @description('Name of the Storage Account. Automatically generated if left blank')
 param storageName string = ''
 @description('Name of the Bot Service. Automatically generated if left blank')
@@ -88,6 +90,7 @@ var names = {
   privateLinkSubnet: '${abbrs.networkVirtualNetworksSubnets}${environmentName}-pl-${uniqueSuffix}'
   appSubnet: '${abbrs.networkVirtualNetworksSubnets}${environmentName}-app-${uniqueSuffix}'
   aiServices: !empty(aiServicesName) ? aiServicesName : '${abbrs.cognitiveServicesAccounts}${environmentName}-${uniqueSuffix}'
+  aiHub: !empty(aiHubName) ? aiHubName : '${abbrs.cognitiveServicesAccounts}hub-${environmentName}-${uniqueSuffix}'
   search: !empty(searchName) ? searchName : '${abbrs.searchSearchServices}${environmentName}-${uniqueSuffix}'
   storage: !empty(storageName)
     ? storageName
@@ -304,9 +307,10 @@ module m_app 'modules/appservice.bicep' = {
     linuxFxVersion: stack
     implementation: implementation
     tags: tags
+    publicNetworkAccess: publicNetworkAccess
     privateEndpointSubnetId: privateEndpointSubnetId
     privateDnsZoneId: dnsZoneIds[8]
-    appSubnetId: m_network.outputs.appSubnetId
+    appSubnetId: publicNetworkAccess == 'Disabled' ? m_network.outputs.appSubnetId : ''
     msiID: m_msi.outputs.msiID
     msiClientID: m_msi.outputs.msiClientID
     cosmosName: m_cosmos.outputs.cosmosName

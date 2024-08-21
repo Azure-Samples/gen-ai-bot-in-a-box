@@ -23,7 +23,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
     customSubDomainName: aiServicesName
     publicNetworkAccess: !empty(allowedIpAddresses) ? 'Enabled' : publicNetworkAccess
     networkAcls: {
-      defaultAction: 'Deny'
+      defaultAction: publicNetworkAccess == 'Enabled' ? 'Allow' : 'Deny'
       ipRules: [
         for ipAddress in allowedIpAddresses: {
           value: ipAddress

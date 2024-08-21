@@ -6,10 +6,10 @@ hooks:
   predeploy: 
     windows:
       shell: pwsh
-      run: pwsh ./scripts/configureSingleTenantApp.ps1 && pwsh ./scripts/createAssistant.ps1
+      run: pwsh ./scripts/configureSingleTenantApp.ps1
     posix:
       shell: sh
-      run: sh ./scripts/configureSingleTenantApp.sh && sh ./scripts/createAssistant.sh
+      run: sh ./scripts/configureSingleTenantApp.sh
 services:
     genai-bot-app-frontend:
         project: src/webchat

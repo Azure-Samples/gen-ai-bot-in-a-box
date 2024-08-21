@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.29.47.4906",
-      "templateHash": "16181111582418211004"
+      "templateHash": "5391048253153209616"
     }
   },
   "parameters": {
@@ -98,6 +98,13 @@
       "defaultValue": "",
       "metadata": {
         "description": "Name of the AI Services account. Automatically generated if left blank"
+      }
+    },
+    "aiHubName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name of the AI Hub resource. Automatically generated if left blank"
       }
     },
     "storageName": {
@@ -361,6 +368,7 @@
       "privateLinkSubnet": "[format('{0}{1}-pl-{2}', variables('abbrs').networkVirtualNetworksSubnets, parameters('environmentName'), variables('uniqueSuffix'))]",
       "appSubnet": "[format('{0}{1}-app-{2}', variables('abbrs').networkVirtualNetworksSubnets, parameters('environmentName'), variables('uniqueSuffix'))]",
       "aiServices": "[if(not(empty(parameters('aiServicesName'))), parameters('aiServicesName'), format('{0}{1}-{2}', variables('abbrs').cognitiveServicesAccounts, parameters('environmentName'), variables('uniqueSuffix')))]",
+      "aiHub": "[if(not(empty(parameters('aiHubName'))), parameters('aiHubName'), format('{0}hub-{1}-{2}', variables('abbrs').cognitiveServicesAccounts, parameters('environmentName'), variables('uniqueSuffix')))]",
       "search": "[if(not(empty(parameters('searchName'))), parameters('searchName'), format('{0}{1}-{2}', variables('abbrs').searchSearchServices, parameters('environmentName'), variables('uniqueSuffix')))]",
       "storage": "[if(not(empty(parameters('storageName'))), parameters('storageName'), replace(replace(format('{0}{1}{2}', variables('abbrs').storageStorageAccounts, parameters('environmentName'), variables('uniqueSuffix')), '-', ''), '_', ''))]",
       "computeInstance": "[format('{0}{1}-{2}', variables('abbrs').computeVirtualMachines, parameters('environmentName'), variables('uniqueSuffix'))]"
@@ -764,7 +772,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "9544431106754674388"
+              "templateHash": "10208558128427774847"
             }
           },
           "parameters": {
@@ -863,7 +871,7 @@
                       }
                     }
                   ],
-                  "defaultAction": "Deny"
+                  "defaultAction": "[if(equals(parameters('publicNetworkAccess'), 'Enabled'), 'Allow', 'Deny')]"
                 }
               },
               "tags": "[parameters('tags')]"
@@ -1805,13 +1813,14 @@
           "tags": {
             "value": "[parameters('tags')]"
           },
+          "publicNetworkAccess": {
+            "value": "[parameters('publicNetworkAccess')]"
+          },
           "privateEndpointSubnetId": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.privateEndpointSubnetId.value), createObject('value', ''))]",
           "privateDnsZoneId": {
             "value": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns'), '2022-09-01').outputs.dnsZoneIds.value, variables('dnsZones'))[8]]"
           },
-          "appSubnetId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.appSubnetId.value]"
-          },
+          "appSubnetId": "[if(equals(parameters('publicNetworkAccess'), 'Disabled'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet'), '2022-09-01').outputs.appSubnetId.value), createObject('value', ''))]",
           "msiID": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_msi'), '2022-09-01').outputs.msiID.value]"
           },
@@ -1836,7 +1845,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "4711076311117924292"
+              "templateHash": "3194472587829332960"
             }
           },
           "parameters": {
@@ -1884,6 +1893,9 @@
             "cosmosName": {
               "type": "string"
             },
+            "publicNetworkAccess": {
+              "type": "string"
+            },
             "privateEndpointSubnetId": {
               "type": "string"
             },
@@ -1896,6 +1908,7 @@
           },
           "resources": [
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
               "apiVersion": "2021-05-01",
               "name": "[format('{0}/{1}', format('pl-{0}', parameters('backendAppServiceName')), format('zg-{0}', parameters('backendAppServiceName')))]",
@@ -1914,6 +1927,7 @@
               ]
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
               "apiVersion": "2021-05-01",
               "name": "[format('{0}/{1}', format('pl-{0}', parameters('frontendAppServiceName')), format('zg-{0}', parameters('frontendAppServiceName')))]",
@@ -1961,7 +1975,7 @@
               "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
                 "httpsOnly": true,
-                "virtualNetworkSubnetId": "[parameters('appSubnetId')]",
+                "virtualNetworkSubnetId": "[if(not(empty(parameters('appSubnetId'))), parameters('appSubnetId'), null())]",
                 "siteConfig": {
                   "ipSecurityRestrictions": [
                     {
@@ -2121,7 +2135,7 @@
               "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
                 "httpsOnly": true,
-                "virtualNetworkSubnetId": "[parameters('appSubnetId')]",
+                "virtualNetworkSubnetId": "[if(not(empty(parameters('appSubnetId'))), parameters('appSubnetId'), null())]",
                 "siteConfig": {
                   "publicNetworkAccess": "Enabled",
                   "ipSecurityRestrictionsDefaultAction": "Allow",
@@ -2182,6 +2196,7 @@
               ]
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints",
               "apiVersion": "2021-05-01",
               "name": "[format('pl-{0}', parameters('backendAppServiceName'))]",
@@ -2208,6 +2223,7 @@
               ]
             },
             {
+              "condition": "[equals(parameters('publicNetworkAccess'), 'Disabled')]",
               "type": "Microsoft.Network/privateEndpoints",
               "apiVersion": "2021-05-01",
               "name": "[format('pl-{0}', parameters('frontendAppServiceName'))]",
