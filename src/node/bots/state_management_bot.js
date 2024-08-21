@@ -12,8 +12,8 @@ class StateManagementBot extends ActivityHandler {
         this.conversationDataAccessor = this.conversationState.createProperty("ConversationData");
         this.userProfileAccessor = this.userState.createProperty("UserProfile");
         this.dialog = dialog;
-        this.ssoEnabled = config.GetValue("SSO_ENABLED", false);
-        this.ssoConfigName = config.GetValue("SSO_CONFIG_NAME", "default");
+        this.ssoEnabled = process.env.SSO_ENABLED || false
+        this.ssoConfigName = process.env.SSO_CONFIG_NAME || "default"
     }
 
     async run(context) {

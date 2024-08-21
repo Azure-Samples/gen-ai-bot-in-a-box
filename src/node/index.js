@@ -66,7 +66,7 @@ const credential = new DefaultAzureCredential()
 
 // Azure AI Services
 const aoaiClient = new AzureOpenAI({
-    baseURL: process.env.AZURE_OPENAI_API_ENDPOINT,
+    baseURL: process.env.AZURE_OPENAI_API_ENDPOINT + '/openai',
     azureADTokenProvider: () => credential.getToken('https://cognitiveservices.azure.com/.default').then(result => result.token),
     apiVersion: process.env.AZURE_OPENAI_API_VERSION,
 });
