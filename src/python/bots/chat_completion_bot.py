@@ -62,6 +62,9 @@ class ChatCompletionBot(StateManagementBot):
         await turn_context.send_activity(response)
 
         # Send citations if they exist
-        if 'citations' in completion.choices[0].message.context and len(completion.choices[0].message.context['citations']) > 0:
+        if  os.getenv("AZURE_SEARCH_API_ENDPOINT") \
+            and 'citations' in completion.choices[0].message.context \
+            and len(completion.choices[0].message.context['citations']) > 0:
+
             citations = completion.choices[0].message.context['citations']
             await turn_context.send_activity(get_citations_card(citations))
