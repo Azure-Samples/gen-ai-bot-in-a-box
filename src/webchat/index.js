@@ -79,8 +79,15 @@ server.get('/api/speech/token', async (req, res) => {
 
 });
 
+server.use(restify.plugins.gzipResponse());
 // Home page
+
 server.get('/', restify.plugins.serveStatic({
     directory: path.join(__dirname, 'public'),
     file: 'index.html'
+}));
+
+
+server.get('/*', restify.plugins.serveStatic({
+    directory: path.join(__dirname, 'public'),
 }));

@@ -1,6 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Bot.Builder.Integration.AspNet.Core;
+using Microsoft.Bot.Schema.Teams;
+using Microsoft.VisualBasic;
+
 namespace GenAIBot.Bots
 {
     public class AssistantBot<T> : StateManagementBot<T> where T : Dialog
@@ -12,10 +17,12 @@ namespace GenAIBot.Bots
         private readonly FileClient _fileClient;
         private readonly HttpClient _httpClient;
         private readonly string _assistantId;
+        private readonly string _appId;
 
         public AssistantBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient, HttpClient httpClient, T dialog)
             : base(config, conversationState, userState, dialog)
         {
+            _appId = config["MicrosoftAppId"] ?? string.Empty;
             _assistantClient = aoaiClient.GetAssistantClient();
             _chatClient = aoaiClient.GetChatClient(config["AZURE_OPENAI_DEPLOYMENT_NAME"]);
             _fileClient = aoaiClient.GetFileClient();
@@ -40,6 +47,13 @@ namespace GenAIBot.Bots
 
         protected override async Task<bool> OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
+            // Enforce login
+            var loggedIn = await HandleLogin(turnContext, cancellationToken);
+            if (!loggedIn)
+            {
+                return false;
+            }
+
             // Load conversation state
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
             var conversationData = await conversationStateAccessors.GetAsync(
@@ -49,13 +63,6 @@ namespace GenAIBot.Bots
                         new() { Role = "system", Message = _instructions }
                     }
                 });
-
-            // Enforce login
-            var loggedIn = await HandleLogin(turnContext, cancellationToken);
-            if (!loggedIn)
-            {
-                return false;
-            }
 
             AssistantThread thread;
             if (conversationData.ThreadId == null)
@@ -74,7 +81,7 @@ namespace GenAIBot.Bots
             // Return early if there is no text in the message
             if (turnContext.Activity.Text == null)
             {
-                return false;
+                return true;
             }
 
             // Check if this is a file upload follow up - user selects a file upload option
@@ -111,7 +118,7 @@ namespace GenAIBot.Bots
 
             // Send user message to thread
             _assistantClient.CreateMessage(thread, new List<MessageContent>() { MessageContent.FromText(turnContext.Activity.Text) });
-            
+
             // Run thread
             var run = _assistantClient.CreateRunStreamingAsync(
                 conversationData.ThreadId,
@@ -124,17 +131,31 @@ namespace GenAIBot.Bots
 
             // Process run streaming
             await ProcessRunStreaming(run, conversationData, turnContext, cancellationToken);
-            
+
             return true;
 
         }
 
-        protected async Task ProcessRunStreaming(AsyncResultCollection<StreamingUpdate> run, ConversationData conversationData, ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
+        protected async Task ProcessRunStreaming(AsyncResultCollection<StreamingUpdate> run, ConversationData conversationData, ITurnContext turnContext, CancellationToken cancellationToken)
         {
             // Start streaming response
             var currentMessage = "";
             List<ToolOutput> toolOutputs = new();
             ThreadRun currentRun = null;
+            string activityId;
+            int streamSequence = 1;
+
+            var firstMessage = new Activity
+            {
+                ChannelData = new Dictionary<string, object>() {
+                {"streamSequence", streamSequence},
+                {"streamType", "informative"}
+            },
+                Text = "Typing...",
+                Type = "typing"
+            };
+            activityId = (await turnContext.SendActivityAsync(firstMessage)).Id;
+
             await foreach (StreamingUpdate evt in run)
             {
                 if (evt is RunUpdate)
@@ -159,6 +180,19 @@ namespace GenAIBot.Bots
                     if (messageContentUpdate.Text != null)
                     {
                         currentMessage += messageContentUpdate.Text;
+                        streamSequence++;
+                        var msg = new Activity
+                        {
+                            ChannelData = new Dictionary<string, object>() {
+                            {"streamId", activityId},
+                            {"streamSequence", streamSequence},
+                            {"streamType", "streaming"}
+                        },
+                            Id = activityId,
+                            Type = "typing",
+                            Text = currentMessage
+                        };
+                        turnContext.SendActivityAsync(msg);
                     }
                     else if (messageContentUpdate.ImageFileId != null)
                     {
@@ -167,7 +201,8 @@ namespace GenAIBot.Bots
                 }
             }
             // Recursively process the run with the tool outputs
-            if (toolOutputs.Count > 0) {
+            if (toolOutputs.Count > 0)
+            {
                 var newRun = _assistantClient.SubmitToolOutputsToRunStreamingAsync(currentRun, toolOutputs);
                 await ProcessRunStreaming(newRun, conversationData, turnContext, cancellationToken);
                 return;
@@ -176,11 +211,22 @@ namespace GenAIBot.Bots
             // Add assistant message to history
             conversationData.AddTurn("assistant", currentMessage);
 
-            // Respond back to user
-            await turnContext.SendActivityAsync(MessageFactory.Text(currentMessage, currentMessage), cancellationToken);
+            streamSequence++;
+            var finalMsg = new Activity
+            {
+                ChannelData = new Dictionary<string, object>() {
+                {"streamId", activityId},
+                {"streamSequence", streamSequence},
+                {"streamType", "final"}
+            },
+                Id = activityId,
+                Text = currentMessage,
+                Type = "message"
+            };
+            await turnContext.SendActivityAsync(finalMsg);
         }
 
-        protected async Task<bool> HandleFileUploads(ITurnContext<IMessageActivity> turnContext, AssistantThread thread, ConversationData conversationData, CancellationToken cancellationToken)
+        protected async Task<bool> HandleFileUploads(ITurnContext turnContext, AssistantThread thread, ConversationData conversationData, CancellationToken cancellationToken)
         {
             var filesUploaded = false;
             // Check if incoming message has attached files

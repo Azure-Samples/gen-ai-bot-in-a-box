@@ -203,7 +203,6 @@ resource frontend 'Microsoft.Web/sites@2023-12-01' = {
       scmIpSecurityRestrictionsDefaultAction: 'Allow'
       http20Enabled: true
       linuxFxVersion: 'NODE|20-lts'
-      appCommandLine: startsWith(linuxFxVersion, 'python') ? 'gunicorn --bind 0.0.0.0 --timeout 600 app:app --worker-class aiohttp.GunicornWebWorker' : ''
       appSettings: [
         {
           name: 'MicrosoftAppType'
@@ -236,6 +235,10 @@ resource frontend 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AZURE_SPEECH_RESOURCE_ID'
           value: aiServices.id
+        }
+        {
+          name: 'DIRECT_LINE_SECRET'
+          value: 'YOUR_DIRECT_LINE_SECRET'
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'

@@ -1,85 +1,134 @@
 <!---- Sample code from: https://github.com/microsoft/BotFramework-WebChat -->
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="shortcut icon" href="/images/BotServices.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <title>Web Chat Direct Line Token Demo</title>
-    <script crossorigin="anonymous" src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
 
-    <!-- This styling is for Web Chat demonstration purposes -->
-    <style type="text/css">
-      html,
-      body {
-        background-color: #f7f7f7;
-        height: 100%;
+<head>
+  <meta charset="utf-8" />
+  <link rel="shortcut icon" href="/images/BotServices.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
+  <title>Web Chat Direct Line Token Demo</title>
+  <script crossorigin="anonymous" src="/webchat.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <!-- This styling is for Web Chat demonstration purposes -->
+  <style type="text/css">
+    html,
+    body {
+      background-color: #f7f7f7;
+      height: 100%;
+    }
+
+    body {
+      background-image: url(/images/BotServices-Translucent.svg);
+      background-position: 100% 100%;
+      background-repeat: no-repeat;
+      background-size: auto 50%;
+      margin: 0;
+    }
+
+    #root {
+      display: flex;
+      height: 100%;
+    }
+
+    #webchat {
+      border-radius: 4px;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
+      height: calc(100% - 20px);
+      left: 10px;
+      overflow: hidden;
+      position: fixed;
+      top: 10px;
+      width: calc(100% - 20px);
+      z-index: 1;
+    }
+
+    .loader {
+      border: 16px solid #f3f3f3;
+      /* Light grey */
+      border-top: 16px solid #3498db;
+      /* Blue */
+      border-radius: 50%;
+      width: 120px;
+      height: 120px;
+      animation: spin 2s linear infinite;
+      margin: auto;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
       }
 
-      body {
-        background-image: url(/images/BotServices-Translucent.svg);
-        background-position: 100% 100%;
-        background-repeat: no-repeat;
-        background-size: auto 50%;
-        margin: 0;
+      100% {
+        transform: rotate(360deg);
       }
+    }
+  </style>
+</head>
 
-      #webchat {
-        border-radius: 4px;
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
-        height: calc(100% - 20px);
-        left: 10px;
-        overflow: hidden;
-        position: fixed;
-        top: 10px;
-        width: calc(100% - 20px);
-      }
-    </style>
-  </head>
-  
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="webchat"></div>
-    <script>
-      // This is a helper function for fetching JSON resources.
-      async function fetchJSON(url, options = {}) {
-        const res = await fetch(url, {
-          ...options,
-          headers: {
-            ...options.headers,
-            accept: 'application/json'
-          }
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to fetch JSON due to ${res.status}`);
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root">
+    <div id="webchat">
+      <div class="loader"></div>
+    </div>
+  </div>
+  <script>
+    // This is a helper function for fetching JSON resources.
+    async function fetchJSON(url, options = {}) {
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          accept: 'application/json'
         }
+      });
 
-        return await res.json();
+      if (!res.ok) {
+        throw new Error(`Failed to fetch JSON due to ${res.status}`);
       }
 
-      async function main(locale) {
-        let directLineToken = await fetchJSON('/api/directline/token')
-          .then(res => res.token)
-        let speechData = await fetchJSON('/api/speech/token')
-          .catch(err => null)
-        WebChat.renderWebChat(
-          {
-            directLine: createDirectLine({ token: directLineToken }),
-            locale: locale,
-            webSpeechPonyfillFactory: speechData ? WebChat.createCognitiveServicesSpeechServicesPonyfillFactory({
-              credentials: {
-                region: speechData.region,
-                authorizationToken: `bearer ${speechData.token}`
-              }
-            }) : undefined
-          },
-          document.getElementById('webchat')
-        );
-      };
+      return await res.json();
+    }
+
+    async function main(locale) {
+      let directLineToken = await fetchJSON('/api/directline/token')
+        .then(res => res.token)
+        .catch(err => {
+          $('#webchat').html(`
+            <h1>
+              There was an error starting the chat.
+            </h1>
+            <p>
+              Failed to start web chat due to an invalid Direct Line token response.
+              Direct Line secret was not configured or is incorrect. 
+              Please check your configuration.
+            </p>
+            `);
+            throw err;
+        })
+      let speechData = await fetchJSON('/api/speech/token')
+        .catch(err => null)
+      WebChat.renderWebChat(
+        {
+          directLine: createDirectLine({ token: directLineToken, webSocket: true }),
+          locale: locale,
+          webSpeechPonyfillFactory: speechData ? WebChat.createCognitiveServicesSpeechServicesPonyfillFactory({
+            credentials: {
+              region: speechData.region,
+              authorizationToken: `bearer ${speechData.token}`
+            }
+          }) : undefined
+        },
+        document.getElementById('webchat')
+      );
+    };
+    $(document).ready(function() {
       main('en-US');
-    </script>
-    <div id="root"></div>
-  </body>
+    });
+  </script>
+</body>
+
 </html>

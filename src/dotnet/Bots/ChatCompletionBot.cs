@@ -31,7 +31,6 @@ namespace GenAIBot.Bots
             _searchIndex = config["AZURE_SEARCH_INDEX"];
         }
 
-        // Modify onMembersAdded as needed
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
         {
             foreach (var member in membersAdded)
@@ -45,6 +44,13 @@ namespace GenAIBot.Bots
 
         protected override async Task<bool> OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
+            // Enforce login
+            var loggedIn = await HandleLogin(turnContext, cancellationToken);
+            if (!loggedIn)
+            {
+                return false;
+            }
+
             // Load conversation state
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
             var conversationData = await conversationStateAccessors.GetAsync(
@@ -55,8 +61,6 @@ namespace GenAIBot.Bots
                     }
                 });
 
-            // Catch any special messages here
-            
             // Add user message to history
             conversationData.AddTurn("user", turnContext.Activity.Text);
 
@@ -73,26 +77,86 @@ namespace GenAIBot.Bots
                 });
             }
 
-            var completion = _chatClient.CompleteChat(messages: conversationData.toMessages(), options: options);
-            var response = completion.Value.Content[0].Text;
-
-            // Add assistant message to history
-            conversationData.AddTurn("assistant", response);
-            
-            // Respond back to user
-            await turnContext.SendActivityAsync(MessageFactory.Text(response), cancellationToken);
+            var completion = _chatClient.CompleteChatStreamingAsync(messages: conversationData.toMessages(), options: options);
+            await ProcessRunStreaming(completion, conversationData, turnContext, cancellationToken);
 
             // Send citations if they exist
-            if (!string.IsNullOrEmpty(_searchEndpoint))
-            {
-                var citations = completion.Value.GetAzureMessageContext().Citations;
-                if (citations.Count > 0)
-                {
-                    var message = MessageFactory.Attachment(Utils.Utils.GetCitationsCard(citations));
-                    await turnContext.SendActivityAsync(message, cancellationToken);
-                }
-            }
+            // if (!string.IsNullOrEmpty(_searchEndpoint))
+            // {
+            //     var citations = completion.Value.GetAzureMessageContext().Citations;
+            //     if (citations.Count > 0)
+            //     {
+            //         var message = MessageFactory.Attachment(Utils.Utils.GetCitationsCard(citations));
+            //         await turnContext.SendActivityAsync(message, cancellationToken);
+            //     }
+            // }
             return true;
+        }
+
+        protected async Task ProcessRunStreaming(AsyncResultCollection<StreamingChatCompletionUpdate> run, ConversationData conversationData, ITurnContext turnContext, CancellationToken cancellationToken)
+        {
+            // Start streaming response
+            var currentMessage = "";
+            List<ToolOutput> toolOutputs = new();
+            string activityId;
+            int streamSequence = 1;
+
+            var firstMessage = new Activity
+            {
+                ChannelData = new Dictionary<string, object>() {
+                {"streamSequence", streamSequence},
+                {"streamType", "informative"}
+            },
+                Text = "Typing...",
+                Type = "typing"
+            };
+            activityId = (await turnContext.SendActivityAsync(firstMessage)).Id;
+
+            await foreach (StreamingChatCompletionUpdate evt in run)
+            {
+                foreach (var messageContentUpdate in evt.ContentUpdate)
+                {
+                    if (messageContentUpdate.Text != null)
+                    {
+                        currentMessage += messageContentUpdate.Text;
+                        streamSequence++;
+                        var msg = new Activity
+                        {
+                            ChannelData = new Dictionary<string, object>() {
+                            {"streamId", activityId},
+                            {"streamSequence", streamSequence},
+                            {"streamType", "streaming"}
+                        },
+                            Id = activityId,
+                            Type = "typing",
+                            Text = currentMessage
+                        };
+                        turnContext.SendActivityAsync(msg);
+                    }
+                    else if (messageContentUpdate.ImageUri != null)
+                    {
+                        currentMessage += $"![image]({messageContentUpdate.ImageUri})";
+                    }
+                }
+
+            }
+
+            // Add assistant message to history
+            conversationData.AddTurn("assistant", currentMessage);
+
+            streamSequence++;
+            var finalMsg = new Activity
+            {
+                ChannelData = new Dictionary<string, object>() {
+                {"streamId", activityId},
+                {"streamSequence", streamSequence},
+                {"streamType", "final"}
+            },
+                Id = activityId,
+                Text = currentMessage,
+                Type = "message"
+            };
+            await turnContext.SendActivityAsync(finalMsg);
         }
     }
 }

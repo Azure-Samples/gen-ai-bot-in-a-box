@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.002.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{6479AF9D-5F03-4BC7-8407-F235496F89F3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenAIBot", "src\dotnet\GenAIBot.csproj", "{04526542-A862-4E04-9824-3A6A9106F412}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{04526542-A862-4E04-9824-3A6A9106F412}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04526542-A862-4E04-9824-3A6A9106F412}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04526542-A862-4E04-9824-3A6A9106F412}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04526542-A862-4E04-9824-3A6A9106F412}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{04526542-A862-4E04-9824-3A6A9106F412} = {6479AF9D-5F03-4BC7-8407-F235496F89F3}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E7ADD0D3-1B98-4FBE-8FB7-B7B015F803D7}
+	EndGlobalSection
+EndGlobal

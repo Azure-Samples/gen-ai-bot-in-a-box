@@ -17,6 +17,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   kind: 'StorageV2'
   properties: {
     isLocalUserEnabled: systemDatastoresAuthMode == 'accessKey'
+    allowSharedKeyAccess: systemDatastoresAuthMode == 'accessKey'
     accessTier: 'Hot'
     encryption: {
       keySource: 'Microsoft.Storage'
