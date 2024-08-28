@@ -58,14 +58,14 @@ async def on_error(context: TurnContext, error: Exception):
 adapter.on_turn_error = on_error
 
 # Set up service authentication
-credential = DefaultAzureCredential()
+credential = DefaultAzureCredential(managed_identity_client_id=os.getenv("MicrosoftAppId"))
 
 # Azure AI Services
 aoai_client = AzureOpenAI(
     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
     azure_endpoint=os.getenv("AZURE_OPENAI_API_ENDPOINT"),
     azure_ad_token_provider=get_bearer_token_provider(
-        DefaultAzureCredential(), 
+        credential, 
         "https://cognitiveservices.azure.com/.default"
     )
 )

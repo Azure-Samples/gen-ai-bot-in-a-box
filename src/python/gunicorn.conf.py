@@ -9,7 +9,7 @@ timeout = 230
 # https://learn.microsoft.com/en-us/troubleshoot/azure/app-service/web-apps-performance-faqs#why-does-my-request-time-out-after-230-seconds
 
 num_cpus = multiprocessing.cpu_count()
-# workers = (num_cpus * 2) + 1
-workers = 1
+workers = (num_cpus * 2) + 1
+# workers = 1
 worker_class = "aiohttp.GunicornWebWorker"
 port = 3978
