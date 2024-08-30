@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using AdaptiveCards;
 using Azure.AI.OpenAI.Chat;
 
@@ -26,7 +23,6 @@ namespace Utils
 
         private static AdaptiveElement getCitationBlock(AzureChatCitation citation, int index)
         {
-
             return new AdaptiveContainer()
             {
                 Items = [
@@ -35,7 +31,7 @@ namespace Utils
                             new AdaptiveColumn() {
                                 Items = [
                                     new AdaptiveTextBlock() {
-                                        Text = $"[{citation.Title}]({citation.Url})",
+                                        Text = $"[{citation.Filepath} ({citation.ChunkId})]({citation.Url})",
                                         Wrap = true,
                                         Size = AdaptiveTextSize.Medium
                                     }
@@ -84,7 +80,7 @@ namespace Utils
                             new AdaptiveContainer() {
                                 Items = [
                                     new AdaptiveTextBlock() {
-                                        Text = citation.Content,
+                                        Text = GetContent(citation),
                                         IsSubtle = true,
                                         Wrap = true
                                     }
@@ -97,6 +93,13 @@ namespace Utils
                 Separator = true,
                 Spacing = AdaptiveSpacing.Medium
             };
+        }
+    
+        private static string GetContent(AzureChatCitation citation) {
+            if (citation.Content.StartsWith($"Title: {citation.Filepath}"))
+                return citation.Content.Replace($"Title: {citation.Filepath}", "");
+            else
+                return citation.Content;
         }
     }
 }

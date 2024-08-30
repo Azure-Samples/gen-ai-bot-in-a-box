@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{6479AF9D-5F03-4BC7-8407-F235496F89F3}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{79D7D2A9-EFA5-4662-A147-1CAE43A1F3B0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenAIBot", "src\dotnet\GenAIBot.csproj", "{04526542-A862-4E04-9824-3A6A9106F412}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenAIBot", "src\dotnet\GenAIBot.csproj", "{8027B5D5-5BAD-4DAA-A871-C8BCB3D80E1C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,18 +13,18 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{04526542-A862-4E04-9824-3A6A9106F412}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{04526542-A862-4E04-9824-3A6A9106F412}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{04526542-A862-4E04-9824-3A6A9106F412}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{04526542-A862-4E04-9824-3A6A9106F412}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8027B5D5-5BAD-4DAA-A871-C8BCB3D80E1C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8027B5D5-5BAD-4DAA-A871-C8BCB3D80E1C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8027B5D5-5BAD-4DAA-A871-C8BCB3D80E1C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8027B5D5-5BAD-4DAA-A871-C8BCB3D80E1C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{04526542-A862-4E04-9824-3A6A9106F412} = {6479AF9D-5F03-4BC7-8407-F235496F89F3}
+		{8027B5D5-5BAD-4DAA-A871-C8BCB3D80E1C} = {79D7D2A9-EFA5-4662-A147-1CAE43A1F3B0}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {E7ADD0D3-1B98-4FBE-8FB7-B7B015F803D7}
+		SolutionGuid = {540AB309-3521-45B2-AF18-EFB6D8379E2F}
 	EndGlobalSection
 EndGlobal

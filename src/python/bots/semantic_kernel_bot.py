@@ -13,14 +13,13 @@ from semantic_kernel.connectors.ai.open_ai import (
     AzureChatCompletion,
     AzureChatPromptExecutionSettings,
     ExtraBody,
-    ApiKeyAuthentication
 )
 from semantic_kernel.connectors.memory.azure_cognitive_search.azure_ai_search_settings import AzureAISearchSettings
 from semantic_kernel.contents import ChatHistory
 from semantic_kernel.functions import KernelArguments
 from semantic_kernel.prompt_template import InputVariable, PromptTemplateConfig
     
-from data_models import ConversationData, ConversationTurn
+from data_models import ConversationData
 from .state_management_bot import StateManagementBot
 from utils import get_citations_card, replace_citations
 

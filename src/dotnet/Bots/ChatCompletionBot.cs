@@ -1,16 +1,5 @@
-﻿#pragma warning disable AOAI001
-
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Azure.AI.OpenAI;
-using Azure.AI.OpenAI.Chat;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Builder.Dialogs;
-using Microsoft.Bot.Schema;
-using Microsoft.BotBuilderSamples;
-using Microsoft.Extensions.Configuration;
-using OpenAI.Chat;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
 namespace GenAIBot.Bots
 {
@@ -18,17 +7,18 @@ namespace GenAIBot.Bots
     {
         private readonly ChatClient _chatClient;
         private readonly string _instructions;
-        private readonly string _searchEndpoint;
-        private readonly string _searchIndex;
+        private readonly AzureSearchChatDataSource _chatDataSource;
+        private readonly HttpClient _httpClient;
+        private readonly bool _streaming;
 
-        public ChatCompletionBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient, T dialog)
+        public ChatCompletionBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient, AzureSearchChatDataSource chatDataSource, HttpClient httpClient, T dialog)
             : base(config, conversationState, userState, dialog)
         {
             _chatClient = aoaiClient.GetChatClient(config["AZURE_OPENAI_DEPLOYMENT_NAME"]);
             _instructions = config["LLM_INSTRUCTIONS"];
-
-            _searchEndpoint = config["AZURE_SEARCH_API_ENDPOINT"];
-            _searchIndex = config["AZURE_SEARCH_INDEX"];
+            _chatDataSource = chatDataSource;
+            _httpClient = httpClient;
+            _streaming = config.GetValue("AZURE_OPENAI_STREAMING", false);
         }
 
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
@@ -61,42 +51,36 @@ namespace GenAIBot.Bots
                     }
                 });
 
+            // Check if this is a file upload and process it
+            var filesUploaded = await HandleFileUploads(turnContext, conversationData, cancellationToken);
+
+            // Return early if there is no text in the message
+            if (turnContext.Activity.Text == null)
+            {
+                return true;
+            }
+
             // Add user message to history
             conversationData.AddTurn("user", turnContext.Activity.Text);
 
-            // Run logic to obtain response here
             ChatCompletionOptions options = new();
 
-            if (!string.IsNullOrEmpty(_searchEndpoint))
+            if (_chatDataSource != null)
             {
-                options.AddDataSource(new AzureSearchChatDataSource()
-                {
-                    Endpoint = new System.Uri(_searchEndpoint),
-                    IndexName = _searchIndex,
-                    Authentication = DataSourceAuthentication.FromSystemManagedIdentity()
-                });
+                options.AddDataSource(_chatDataSource);
             }
 
             var completion = _chatClient.CompleteChatStreamingAsync(messages: conversationData.toMessages(), options: options);
             await ProcessRunStreaming(completion, conversationData, turnContext, cancellationToken);
 
-            // Send citations if they exist
-            // if (!string.IsNullOrEmpty(_searchEndpoint))
-            // {
-            //     var citations = completion.Value.GetAzureMessageContext().Citations;
-            //     if (citations.Count > 0)
-            //     {
-            //         var message = MessageFactory.Attachment(Utils.Utils.GetCitationsCard(citations));
-            //         await turnContext.SendActivityAsync(message, cancellationToken);
-            //     }
-            // }
             return true;
         }
 
-        protected async Task ProcessRunStreaming(AsyncResultCollection<StreamingChatCompletionUpdate> run, ConversationData conversationData, ITurnContext turnContext, CancellationToken cancellationToken)
+        protected async Task ProcessRunStreaming(AsyncCollectionResult<StreamingChatCompletionUpdate> run, ConversationData conversationData, ITurnContext turnContext, CancellationToken cancellationToken)
         {
             // Start streaming response
             var currentMessage = "";
+            IReadOnlyList<AzureChatCitation> citations = [];
             List<ToolOutput> toolOutputs = new();
             string activityId;
             int streamSequence = 1;
@@ -114,6 +98,11 @@ namespace GenAIBot.Bots
 
             await foreach (StreamingChatCompletionUpdate evt in run)
             {
+                // Get citations if they exist
+                if (evt.GetAzureMessageContext() != null)
+                {
+                    citations = evt.GetAzureMessageContext().Citations;
+                }
                 foreach (var messageContentUpdate in evt.ContentUpdate)
                 {
                     if (messageContentUpdate.Text != null)
@@ -131,7 +120,9 @@ namespace GenAIBot.Bots
                             Type = "typing",
                             Text = currentMessage
                         };
-                        turnContext.SendActivityAsync(msg);
+                        if (_streaming) {
+                            turnContext.SendActivityAsync(msg);
+                        }
                     }
                     else if (messageContentUpdate.ImageUri != null)
                     {
@@ -157,6 +148,46 @@ namespace GenAIBot.Bots
                 Type = "message"
             };
             await turnContext.SendActivityAsync(finalMsg);
+            
+            if (citations.Count > 0)
+            {
+                var message = MessageFactory.Attachment(Utils.Utils.GetCitationsCard(citations));
+                await turnContext.SendActivityAsync(message, cancellationToken);
+            }
+        }
+        protected async Task<bool> HandleFileUploads(ITurnContext turnContext, ConversationData conversationData, CancellationToken cancellationToken)
+        {
+            var filesUploaded = false;
+            // Check if incoming message has attached files
+            if (turnContext.Activity.Attachments != null)
+            {
+                foreach (var attachment in turnContext.Activity.Attachments)
+                {
+                    filesUploaded = true;
+                    // Get file contents as stream
+                    using var client = new HttpClient();
+                    using var response = await client.GetAsync(attachment.ContentUrl);
+                    using var stream = response.Content.ReadAsStream();
+
+                    // Add file to attachments in case we need to reference it in Function Calling
+                    conversationData.Attachments.Add(new()
+                    {
+                        Name = attachment.Name,
+                        ContentType = attachment.ContentType,
+                        Url = attachment.ContentUrl
+                    });
+
+                    // If attachment is an image, add it to the conversation history as base64
+                    if (attachment.ContentType.Contains("image"))
+                    {
+                        var byteArray = await _httpClient.GetByteArrayAsync(attachment.ContentUrl);
+                        conversationData.AddTurn("user", $"File uploaded: {attachment.Name}", attachment.ContentType, Convert.ToBase64String(byteArray));
+                    }
+
+                    await turnContext.SendActivityAsync(MessageFactory.Text($"File uploaded: {attachment.Name}"), cancellationToken);
+                }
+            }
+            return filesUploaded;
         }
     }
 }

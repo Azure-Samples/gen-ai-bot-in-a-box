@@ -4,6 +4,7 @@ param tags object = {}
 param publicNetworkAccess string
 param privateEndpointSubnetId string
 param privateDnsZoneId string
+param allowedIpAddresses array = []
 
 resource search 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: searchName
@@ -18,6 +19,11 @@ resource search 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   properties: {
     networkRuleSet: {
       bypass: 'AzureServices'
+      ipRules: [
+        for ipAddress in allowedIpAddresses: {
+          value: ipAddress
+        }
+      ]
     }
     disableLocalAuth: true
     replicaCount: 1

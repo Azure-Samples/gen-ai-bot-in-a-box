@@ -13,6 +13,17 @@ class ConversationTurn:
     def toJSON(self):
         return {"role": self.role, "content": self.content}
 
+class Attachment:
+    def __init__(
+        self,
+        name: str = None,
+        content_type: str = None,
+        url: str = None
+    ):
+        self.name = name
+        self.content_type = content_type
+        self.url = url
+
 class ConversationData:
     def __init__(
         self,
@@ -23,6 +34,7 @@ class ConversationData:
         self.thread_id = thread_id
         self.history = history
         self.max_turns = max_turns
+        self.attachments = []
 
     def add_turn(self, role: str, content: str):
         self.history.append(ConversationTurn(role, content))

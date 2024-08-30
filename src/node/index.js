@@ -4,7 +4,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const restify = require('restify');
-const { DefaultAzureCredential } = require('@azure/identity')
+const { DefaultAzureCredential, ManagedIdentityCredential } = require('@azure/identity')
 const {
     CloudAdapter,
     ConfigurationBotFrameworkAuthentication,
@@ -62,7 +62,7 @@ const onTurnErrorHandler = async (context, error) => {
 adapter.onTurnError = onTurnErrorHandler;
 
 // Set up service authentication
-const credential = new DefaultAzureCredential()
+const credential = new DefaultAzureCredential({ workloadIdentityClientId: process.env.MicrosoftAppId });
 
 // Azure AI Services
 const aoaiClient = new AzureOpenAI({

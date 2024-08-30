@@ -20,7 +20,7 @@ The following implementations are supported:
 | Language | Version | Chat Completions | Assistants API | Semantic Kernel | Phi-3 |
 |----------|---------|------------------|----------------|-----------------|-------|
 | Python   | 3.10    | ✔                | ✔              | ✔               | ✗     |
-| C#       | 8.0     | ✔                | ✔              | ✗               | ✗     |
+| C#       | 8.0     | ✔                | ✔              | ✔               | ✗     |
 | NodeJS   | 21.0    | ✔                | ✔              | ✗               | ✗     |
 
 > Notes: The Phi model implementation (coming soon!) requires the deployment of an AI Project and Serverless Endpoint. It does not support function calling.

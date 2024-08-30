@@ -36,6 +36,8 @@ param aiServicesName string = ''
 param aiHubName string = ''
 @description('Name of the Storage Account. Automatically generated if left blank')
 param storageName string = ''
+@description('Name of the Key Vault. Automatically generated if left blank')
+param keyVaultName string = ''
 @description('Name of the Bot Service. Automatically generated if left blank')
 param botName string = ''
 @description('Whether to deploy Azure AI Search service')
@@ -44,6 +46,10 @@ param deploySearch bool
 param searchName string = ''
 @description('Whether to deploy shared private links from AI Search')
 param deploySharedPrivateLinks bool = deploySearch
+@description('Whether to deploy an AI Hub')
+param deployAIHub bool = true
+@description('Whether to deploy a sample AI Project')
+param deployAIProject bool = true
 
 
 // Other configurations
@@ -95,6 +101,7 @@ var names = {
   storage: !empty(storageName)
     ? storageName
     : replace(replace('${abbrs.storageStorageAccounts}${environmentName}${uniqueSuffix}', '-', ''), '_', '')
+  keyVault: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVaultVaults}${environmentName}-${uniqueSuffix}'
   computeInstance: '${abbrs.computeVirtualMachines}${environmentName}-${uniqueSuffix}'
 }
 
@@ -166,8 +173,8 @@ module m_msi 'modules/msi.bicep' = {
   }
 }
 
-// AI Services modules - deploy Cognitive Services and AI Search
-module m_aiServices 'modules/aistudio/aiServices.bicep' = {
+// AI Services module
+module m_aiservices 'modules/aistudio/aiServices.bicep' = {
   name: 'deploy_aiServices'
   scope: resourceGroup
   params: {
@@ -205,6 +212,7 @@ module m_search 'modules/aistudio/searchService.bicep' = if (deploySearch) {
     publicNetworkAccess: publicNetworkAccess
     privateEndpointSubnetId: privateEndpointSubnetId
     privateDnsZoneId: dnsZoneIds[4]
+    allowedIpAddresses: allowedIpAddressesArray
     tags: tags
   }
 }
@@ -214,7 +222,7 @@ module m_sharedPrivateLinks 'modules/aistudio/sharedPrivateLinks.bicep' = if (de
   scope: resourceGroup
   params: {
     searchName: names.search
-    aiServicesName: m_aiServices.outputs.aiServicesName
+    aiServicesName: m_aiservices.outputs.aiServicesName
     storageName: m_storage.outputs.storageName
     grantAccessTo: [
       {
@@ -226,14 +234,14 @@ module m_sharedPrivateLinks 'modules/aistudio/sharedPrivateLinks.bicep' = if (de
         type: 'ServicePrincipal'
       }
       {
-        id: m_aiServices.outputs.aiServicesPrincipalId
+        id: m_aiservices.outputs.aiServicesPrincipalId
         type: 'ServicePrincipal'
       }
     ]
   }
 }
 
-// Storage and Key Vault - AI Hub dependencies
+// Storage and Key Vault
 module m_storage 'modules/aistudio/storage.bicep' = {
   name: 'deploy_storage'
   scope: resourceGroup
@@ -258,6 +266,42 @@ module m_storage 'modules/aistudio/storage.bicep' = {
         type: 'ServicePrincipal'
       }
     ]
+    tags: tags
+  }
+}
+
+module m_keyVault 'modules/aistudio/keyVault.bicep' = {
+  name: 'deploy_keyVault'
+  scope: resourceGroup
+  params: {
+    location: location
+    keyVaultName: names.keyVault
+    publicNetworkAccess: publicNetworkAccess
+    privateEndpointSubnetId: privateEndpointSubnetId
+    privateDnsZoneId: dnsZoneIds[3]
+    tags: tags
+  }
+}
+
+// AI Hub module - deploys AI Hub and Project
+module m_aihub 'modules/aistudio/aihub.bicep' = if (deployAIHub) {
+  name: 'deploy_ai'
+  scope: resourceGroup
+  params: {
+    location: location
+    aiHubName: names.aiHub
+    aiProjectName: 'cog-ai-prj-${environmentName}-${uniqueSuffix}'
+    aiServicesName: m_aiservices.outputs.aiServicesName
+    keyVaultName: m_keyVault.outputs.keyVaultName
+    storageName: names.storage
+    searchName: deploySearch ? m_search.outputs.searchName : ''
+    publicNetworkAccess: publicNetworkAccess
+    systemDatastoresAuthMode: systemDatastoresAuthMode
+    privateEndpointSubnetId: privateEndpointSubnetId
+    apiPrivateDnsZoneId: dnsZoneIds[6]
+    notebookPrivateDnsZoneId: dnsZoneIds[7]
+    defaultComputeName: names.computeInstance
+    deployAIProject: deployAIProject
     tags: tags
   }
 }
@@ -289,7 +333,7 @@ module m_gpt 'modules/gptDeployment.bicep' = {
   name: 'deploygpt'
   scope: resourceGroup
   params: {
-    aiServicesName: m_aiServices.outputs.aiServicesName
+    aiServicesName: m_aiservices.outputs.aiServicesName
     modelName: modelName
     modelVersion: modelVersion
     modelCapacity: modelCapacity
@@ -316,7 +360,7 @@ module m_app 'modules/appservice.bicep' = {
     cosmosName: m_cosmos.outputs.cosmosName
     searchName: deploySearch ? m_search.outputs.searchName : ''
     deploymentName: m_gpt.outputs.modelName
-    aiServicesName: m_aiServices.outputs.aiServicesName
+    aiServicesName: m_aiservices.outputs.aiServicesName
   }
 }
 
@@ -338,7 +382,7 @@ output AZURE_TENANT_ID string = tenant().tenantId
 output AZURE_RESOURCE_GROUP_ID string = resourceGroup.id
 output AZURE_RESOURCE_GROUP_NAME string = resourceGroup.name
 output AZURE_OPENAI_DEPLOYMENT_NAME string = m_gpt.outputs.modelName
-output AI_SERVICES_ENDPOINT string = m_aiServices.outputs.aiServicesEndpoint
+output AI_SERVICES_ENDPOINT string = m_aiservices.outputs.aiServicesEndpoint
 output FRONTEND_APP_NAME string = m_app.outputs.frontendAppName
 output FRONTEND_APP_HOSTNAME string = m_app.outputs.frontendHostName
 output BACKEND_APP_NAME string = m_app.outputs.backendAppName

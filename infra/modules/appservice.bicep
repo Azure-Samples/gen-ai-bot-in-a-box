@@ -91,6 +91,14 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
           value: tenant().tenantId
         }
         {
+          name: 'AZURE_CLIENT_ID'
+          value: msiClientID
+        }
+        {
+          name: 'AZURE_TENANT_ID'
+          value: tenant().tenantId
+        }
+        {
           name: 'SSO_ENABLED'
           value: 'false'
         }
@@ -133,6 +141,10 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AZURE_OPENAI_ASSISTANT_ID'
           value: 'YOUR_ASSISTANT_ID'
+        }
+        {
+          name: 'AZURE_OPENAI_STREAMING'
+          value: 'true'
         }
         {
           name: 'AZURE_COSMOSDB_ENDPOINT'

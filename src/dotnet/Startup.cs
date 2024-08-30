@@ -3,7 +3,9 @@
 
 using System;
 using Azure.AI.OpenAI;
+using Azure.AI.OpenAI.Chat;
 using Azure.Identity;
+using Azure.Search.Documents.Indexes.Models;
 using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -95,6 +97,13 @@ namespace GenAIBot
             // Add the Login dialog
             services.AddSingleton<LoginDialog>();
 
+            services.AddSingleton(new AzureSearchChatDataSource()
+            {
+                Endpoint = new Uri(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")),
+                IndexName = configuration.GetValue<string>("AZURE_SEARCH_INDEX"),
+                Authentication = DataSourceAuthentication.FromSystemManagedIdentity()
+            });
+
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
             switch (configuration.GetValue<string>("GEN_AI_IMPLEMENTATION"))
             {
@@ -105,7 +114,8 @@ namespace GenAIBot
                     services.AddTransient<IBot, Bots.AssistantBot<LoginDialog>>();
                     break;
                 case "semantic-kernel":
-                    throw new Exception("Semantic Kernel is not supported in this version.");
+                    services.AddTransient<IBot, Bots.SemanticKernelBot<LoginDialog>>();
+                    break;
                 case "langchain":
                     throw new Exception("Langchain is not supported in this version.");
                 case "phi":

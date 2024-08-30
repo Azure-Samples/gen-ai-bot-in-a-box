@@ -1,17 +1,14 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-using System.Linq;
-using Azure.AI.OpenAI;
-using OpenAI.Chat;
-
 namespace Microsoft.BotBuilderSamples
 {
     public class ConversationTurn
     {
         public string Role { get; set; } = null;
         public string Message { get; set; } = null;
+        public string ImageData { get; set; } = null;
+        public string ImageType { get; set; } = null;
     }
     public class Attachment
     {
@@ -32,9 +29,16 @@ namespace Microsoft.BotBuilderSamples
         // Track attached documents
         public List<Attachment> Attachments = new List<Attachment>();
 
-        public void AddTurn(string role, string message)
+        public void AddTurn(string role, string message, string imageType = null, string imageData = null)
         {
-            History.Add(new ConversationTurn { Role = role, Message = message });
+            if (imageType == null)
+            {
+                History.Add(new ConversationTurn { Role = role, Message = message });
+            }
+            else
+            {
+                History.Add(new ConversationTurn { Role = role, ImageType = imageType, ImageData = imageData });
+            }
             if (History.Count >= MaxTurns)
             {
                 History.RemoveAt(1);
@@ -43,21 +47,16 @@ namespace Microsoft.BotBuilderSamples
 
         public List<ChatMessage> toMessages()
         {
-            return History.Select<ConversationTurn, ChatMessage>((turn, index) => 
-                turn.Role == "assistant" ? new AssistantChatMessage(turn.Message) : 
-                turn.Role == "user" ? new UserChatMessage(turn.Message) :
+            var messages = History.Select<ConversationTurn, ChatMessage>((turn, index) =>
+                turn.Role == "assistant" ? new AssistantChatMessage(turn.Message) :
+                turn.Role == "user" ? new UserChatMessage(new ChatMessageContentPart[]{
+                    turn.ImageType == null ? 
+                        ChatMessageContentPart.CreateTextMessageContentPart(turn.Message) :
+                        ChatMessageContentPart.CreateImageMessageContentPart(BinaryData.FromString(turn.ImageData), turn.ImageType)
+                }) :
                 new SystemChatMessage(turn.Message)).ToList();
+            return messages;
         }
-
-        public List<Dictionary<string, string>> toMessagesDict()
-        {
-            return History.Select((turn, index) =>
-                new Dictionary<string, string>(){
-                    {"Role", turn.Role},
-                    {"Message", turn.Message}
-                }).ToList();
-        }
-
 
     }
 }
