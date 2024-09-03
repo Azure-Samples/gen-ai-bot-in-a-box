@@ -10,4 +10,4 @@ botbuilder-dialogs==4.16.1
 botbuilder-integration-aiohttp==4.16.1
 python-dotenv==1.0.1
 openai==1.41.0
-semantic-kernel==1.5.1
+semantic-kernel==1.8.2

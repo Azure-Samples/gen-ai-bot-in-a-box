@@ -3,7 +3,8 @@
 import os
 import jwt
 from botbuilder.core import ActivityHandler, ConversationState, TurnContext, UserState
-from botbuilder.dialogs import Dialog
+from botbuilder.dialogs import Dialog, DialogSet, DialogTurnStatus
+from botframework.connector.auth.user_token_client import UserTokenClient
 
 
 class StateManagementBot(ActivityHandler):
@@ -14,6 +15,8 @@ class StateManagementBot(ActivityHandler):
         self.user_profile_accessor = self.user_state.create_property("UserProfile")
         self.dialog = dialog
         self.sso_enabled = os.getenv("SSO_ENABLED", False)
+        if (self.sso_enabled == "false"):
+            self.sso_enabled = False
         self.sso_config_name = os.getenv("SSO_CONFIG_NAME", "default")
 
 
@@ -26,24 +29,30 @@ class StateManagementBot(ActivityHandler):
     async def handle_login(self, turn_context: TurnContext):
         if not self.sso_enabled:
             return True
+        if turn_context.activity.text == 'logout':
+            await self.handle_logout(turn_context)
+            return False
 
         user_profile_accessor = self.user_state.create_property("UserProfile")
         user_profile = await user_profile_accessor.get(turn_context, lambda: {})
 
-        user_token_client = turn_context.turn_state.get(
-            user_token_client.__name__, None
-        )
+        user_token_client = turn_context.turn_state.get(UserTokenClient.__name__, None)
 
         try:
-            user_token = await user_token_client.get_user_token(turn_context.activity.from_property.id, self.sso_config_name, turn_context.activity.channel_id)
-            decoded_token = jwt.decode(user_token.token)
+            user_token = await user_token_client.get_user_token(turn_context.activity.from_property.id, self.sso_config_name, turn_context.activity.channel_id, None)
+            decoded_token = jwt.decode(user_token.token, options={"verify_signature": False})
             user_profile["name"] = decoded_token.get("name")
             return True
         except Exception as error:
-            await self.dialog.run(turn_context, self.conversation_state.create_property("DialogState"))
+            dialog_set = DialogSet(self.conversation_state.create_property("DialogState"))
+            dialog_set.add(self.dialog)
+            dialog_context = await dialog_set.create_context(turn_context)
+            results = await dialog_context.continue_dialog()
+            if results.status == DialogTurnStatus.Empty:
+                await dialog_context.begin_dialog(self.dialog.id)
             return False
 
     async def handle_logout(self, turn_context):
-        user_token_client = turn_context.turnState.get(turn_context.adapter.user_token_client_key)
+        user_token_client = turn_context.turn_state.get(UserTokenClient.__name__, None)
         await user_token_client.sign_out_user(turn_context.activity.from_property.id, self.sso_config_name, turn_context.activity.channel_id)
         await turn_context.send_activity("Signed out")

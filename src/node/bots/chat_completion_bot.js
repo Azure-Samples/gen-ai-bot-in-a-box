@@ -6,9 +6,9 @@ const { StateManagementBot } = require('./state_management_bot');
 
 class ChatCompletionBot extends StateManagementBot {
 
-    constructor(conversationState, userState, aoaiClient) {
-        super(conversationState, userState);
-        this._aoaiClient = aoaiClient;
+    constructor(conversationState, userState, dialog, aoaiClient) {
+        super(conversationState, userState, dialog);
+        this.aoaiClient = aoaiClient;
 
         this.onMembersAdded(async (context, next) => {
             const membersAdded = context.activity.membersAdded;
@@ -30,7 +30,7 @@ class ChatCompletionBot extends StateManagementBot {
                 conversationData.history.splice(1, 1);
             }
 
-            let completion = await this._aoaiClient.chat.completions.create(
+            let completion = await this.aoaiClient.chat.completions.create(
                 { 
                     model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
                     messages: conversationData.history 

@@ -13,7 +13,7 @@ class LoginDialog extends ComponentDialog {
         this.addDialog(new OAuthPrompt(
             "OAuthPrompt",
             {
-                connectionName: process.env.SSO_CONFIG_NAME,
+                connectionName: process.env.SSO_CONFIG_NAME || "default",
                 text: process.env.SSO_MESSAGE_TITLE,
                 title: process.env.SSO_MESSAGE_PROMPT,
                 timeout: 300000, // User has 5 minutes to login (1000 * 60 * 5)

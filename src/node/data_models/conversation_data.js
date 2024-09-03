@@ -10,6 +10,7 @@ class ConversationData {
         this.thread_id = thread_id;
         this.history = history;
         this.max_turns = max_turns;
+        this.attachments = [];
     }
 }
 

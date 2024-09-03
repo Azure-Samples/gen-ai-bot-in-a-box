@@ -40,6 +40,10 @@ namespace Microsoft.BotBuilderSamples
             {
                 return true;
             }
+            if (turnContext.Activity.Text == "logout") {
+                await HandleLogout(turnContext, cancellationToken);
+                return false;
+            }
 
             var userStateAccessors = _userState.CreateProperty<UserProfile>(nameof(UserProfile));
             var userProfile = await userStateAccessors.GetAsync(turnContext, () => new UserProfile());
@@ -63,7 +67,7 @@ namespace Microsoft.BotBuilderSamples
             }
         }
 
-        protected async Task HandleLogout(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
+        protected async Task HandleLogout(ITurnContext turnContext, CancellationToken cancellationToken)
         {
             var userTokenClient = turnContext.TurnState.Get<UserTokenClient>();
             await userTokenClient.SignOutUserAsync(turnContext.Activity.From.Id, _sso_config_name, turnContext.Activity.ChannelId, cancellationToken).ConfigureAwait(false);

@@ -59,7 +59,6 @@ class AssistantBot(StateManagementBot):
         if (files_uploaded):
             return
     
-    
         # Check if this is a file upload follow up - user selects a file upload option
         if (turn_context.activity.text.startswith("#UPLOAD_FILE")):
             # Get upload metadata
@@ -109,8 +108,8 @@ class AssistantBot(StateManagementBot):
         # Run thread
         run = self.aoai_client.beta.threads.runs.create(
             thread_id=conversation_data.thread_id,
-            assistant_id=os.getenv("AZURE_OPENAI_ASSISTANT_ID"),
-            instructions=os.getenv("LLM_INSTRUCTIONS"),
+            assistant_id=self.assistant_id,
+            instructions=self.instructions,
             stream=True
         )
 
@@ -153,17 +152,17 @@ class AssistantBot(StateManagementBot):
                 if type(deltaBlock) == TextDeltaBlock:
                     current_message += deltaBlock.text.value
                     stream_sequence += 1
-                    interimMessage = Activity(
+                    interim_message = Activity(
                         channel_data={
                             "streamId": activity_id,
                             "streamSequence": stream_sequence,
                             "streamType": "streaming"
                         },
-                        text="Typing...",
+                        text=current_message,
                         type="typing"
                     )
                     if (self.streaming):
-                        turn_context.send_activity(interimMessage)
+                        turn_context.send_activity(interim_message)
 
                 elif type(deltaBlock) == ImageFileDeltaBlock: 
                     current_message += f"![{deltaBlock.image_file.file_id}](/api/files/{deltaBlock.image_file.file_id})"
@@ -190,16 +189,16 @@ class AssistantBot(StateManagementBot):
             text= current_message,
             type= "message"
         )
-        await turn_context.SendActivityAsync(finalMsg)
+        await turn_context.send_activity(finalMsg)
     
 
     # Helper to handle file uploads from user
     async def handle_file_uploads(self, turn_context: TurnContext, thread_id: str, conversation_data: ConversationData):
-        filesUploaded = False
+        files_uploaded = False
         # Check if incoming message has attached files
         if turn_context.activity.attachments is not None:
             for attachment in turn_context.activity.attachments:
-                filesUploaded = True
+                files_uploaded = True
                 # Add file to attachments in case we need to reference it in Function Calling
                 conversation_data.attachments.append(Attachment(
                     name = attachment.name,
@@ -223,7 +222,7 @@ class AssistantBot(StateManagementBot):
 
 
         # Return True if files were uploaded
-        return filesUploaded
+        return files_uploaded
     
     async def image_query(self, conversation_data: ConversationData, query: str, image_name: str):
         # Find image in attachments by name

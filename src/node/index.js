@@ -15,6 +15,7 @@ const {
 
 const { AzureOpenAI } = require('openai')
 const { Phi } = require('./services/phi')
+const { LoginDialog } = require('./dialogs/login_dialog')
 
 const ENV_FILE = path.join(__dirname, '.env');
 dotenv.config({ path: ENV_FILE });
@@ -49,12 +50,12 @@ const onTurnErrorHandler = async (context, error) => {
     //       application insights. See https://aka.ms/bottelemetry for telemetry
     //       configuration instructions.
     console.error(`\n [onTurnError] unhandled error: ${error}`);
-
+    console.log(error);
 
     // Send a message to the user
     await context.sendActivity('The bot encountered an error or bug.');
     await context.sendActivity('To continue to run this bot, please fix the bot source code.');
-    await context.sendActivity(error);
+    await context.sendActivity(`${error}`);
 
 };
 
@@ -62,7 +63,7 @@ const onTurnErrorHandler = async (context, error) => {
 adapter.onTurnError = onTurnErrorHandler;
 
 // Set up service authentication
-const credential = new DefaultAzureCredential({ workloadIdentityClientId: process.env.MicrosoftAppId });
+const credential = new DefaultAzureCredential();
 
 // Azure AI Services
 const aoaiClient = new AzureOpenAI({
@@ -76,7 +77,10 @@ let storage
 if (process.env.AZURE_COSMOSDB_ENDPOINT) {
     storage = new CosmosDbPartitionedStorage({
         cosmosDbEndpoint: process.env.AZURE_COSMOSDB_ENDPOINT,
-        tokenCredential: credential,
+        // tokenCredential: credential,
+        cosmosClientOptions: {
+            tokenProvider: () => credential.getToken('https://documents.azure.com/.default').then(result => result.token),
+        },
         databaseId: process.env.AZURE_COSMOSDB_DATABASE_ID,
         containerId: process.env.AZURE_COSMOSDB_CONTAINER_ID,
     });
@@ -89,20 +93,22 @@ const conversationState = new ConversationState(storage);
 const userState = new UserState(storage);
 
 // Create the bot.
+const dialog = new LoginDialog();
+
 let bot
 const engine = process.env.GEN_AI_IMPLEMENTATION
 if (engine == "chat-completions") {
-    bot = new ChatCompletionBot(conversationState, userState, aoaiClient)
+    bot = new ChatCompletionBot(conversationState, userState, dialog, aoaiClient)
 }
 else if (engine == "assistant") {
-    bot = new AssistantBot(conversationState, userState, aoaiClient)
+    bot = new AssistantBot(conversationState, userState, dialog, aoaiClient)
 }
 else if (engine == "semantic-kernel") {
     throw new Error("Semantic Kernel is not supported in NodeJS.")
 }
 else if (engine == "PHI") {
     phi_client = new Phi(process.env.AZURE_AI_PHI_DEPLOYMENT_ENDPOINT, process.env.AZURE_AI_PHI_DEPLOYMENT_KEY)
-    bot = new PhiBot(conversationState, userState, phi_client)
+    bot = new PhiBot(conversationState, userState, dialog, phi_client)
 }
 else {
     throw "Invalid engine type"

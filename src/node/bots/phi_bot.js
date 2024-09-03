@@ -6,9 +6,9 @@ const { StateManagementBot } = require('./state_management_bot');
 
 class PhiBot extends StateManagementBot {
 
-    constructor(conversationState, userState, phiClient) {
-        super(conversationState, userState);
-        this._phiClient = phiClient;
+    constructor(conversationState, userState, dialog, phiClient) {
+        super(conversationState, userState, dialog);
+        this.phiClient = phiClient;
 
         // Modify onMembersAdded as needed
         this.onMembersAdded(async (context, next) => {
@@ -31,7 +31,7 @@ class PhiBot extends StateManagementBot {
                 conversationData.history.splice(1, 1);
             }
 
-            let completion = await this._phiClient.createCompletion(conversationData.history);
+            let completion = await this.phiClient.createCompletion(conversationData.history);
             let response = completion.choices[0].message.content;
 
             // Add assistant message to history

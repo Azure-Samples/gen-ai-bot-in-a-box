@@ -13,7 +13,12 @@ from semantic_kernel.connectors.ai.open_ai import (
     AzureChatCompletion,
     AzureChatPromptExecutionSettings,
     ExtraBody,
+    ApiKeyAuthentication
 )
+from semantic_kernel.connectors.ai.open_ai.prompt_execution_settings.azure_chat_prompt_execution_settings import (
+    AzureChatRequestBase
+)
+from pydantic import BaseModel
 from semantic_kernel.connectors.memory.azure_cognitive_search.azure_ai_search_settings import AzureAISearchSettings
 from semantic_kernel.contents import ChatHistory
 from semantic_kernel.functions import KernelArguments
@@ -45,12 +50,7 @@ class SemanticKernelBot(StateManagementBot):
         # Run logic to obtain response
         kernel = sk.Kernel()
 
-        az_source = AzureAISearchDataSource(parameters={
-            "endpoint": os.getenv("AZURE_SEARCH_API_ENDPOINT"),
-            "index_name": os.getenv("AZURE_SEARCH_INDEX"),
-            "query_type": "simple",
-        })
-        extra = ExtraBody(data_sources=[az_source])
+        extra = ExtraBody()
         req_settings = AzureChatPromptExecutionSettings(service_id="default", extra_body=extra)
 
         chat_service = AzureChatCompletion(
@@ -102,8 +102,3 @@ class SemanticKernelBot(StateManagementBot):
 
         # Respond back to user
         await turn_context.send_activity(response)
-
-        # Send citations if they exist
-        if 'citations' in answer.get_inner_content().choices[0].message.context and len(answer.get_inner_content().choices[0].message.context['citations']) > 0:
-            citations = answer.get_inner_content().choices[0].message.context['citations']
-            await turn_context.send_activity(get_citations_card(citations))

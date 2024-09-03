@@ -51,7 +51,7 @@ class LoginDialog(ComponentDialog):
         token_response = step_context.result
         if token_response:
             await step_context.context.send_activity(self.login_success_message)
-            return await step_context.endDialog()
+            return await step_context.end_dialog()
 
-        await step_context.context.send_activity(self.login_success_message)
+        await step_context.context.send_activity(self.login_failed_message)
         return await step_context.end_dialog()
