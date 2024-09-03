@@ -18,9 +18,9 @@
     "dependencies": {
         "@azure/identity": "^4.4.1",
         "@azure/msal-node": "^2.13.1",
-        "botbuilder": "~4.22.1",
-        "botbuilder-azure": "^4.22.2",
-        "botbuilder-dialogs": "4.22",
+        "botbuilder": "~4.23.0",
+        "botbuilder-azure": "^4.23.0",
+        "botbuilder-dialogs": "4.23",
         "dotenv": "^8.6.0",
         "openai": "^4.47.3",
         "restify": "~10.0.0"
