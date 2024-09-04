@@ -11,6 +11,7 @@ namespace Microsoft.BotBuilderSamples
         public string _systemMessage;
         public bool _sso_enabled;
         public string _sso_config_name;
+        private readonly bool _streaming;
 
         public StateManagementBot(IConfiguration config, ConversationState conversationState, UserState userState, T dialog)
         {
@@ -19,6 +20,7 @@ namespace Microsoft.BotBuilderSamples
             _dialog = dialog;
             _sso_enabled = config.GetValue("SSO_ENABLED", false);
             _sso_config_name = config.GetValue("SSO_CONFIG_NAME", "default");
+            _streaming = config.GetValue("AZURE_OPENAI_STREAMING", false);
         }
 
         public override async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default(CancellationToken))
@@ -40,7 +42,8 @@ namespace Microsoft.BotBuilderSamples
             {
                 return true;
             }
-            if (turnContext.Activity.Text == "logout") {
+            if (turnContext.Activity.Text == "logout")
+            {
                 await HandleLogout(turnContext, cancellationToken);
                 return false;
             }
@@ -74,10 +77,61 @@ namespace Microsoft.BotBuilderSamples
             await turnContext.SendActivityAsync("Signed out");
         }
 
-
         protected override async Task OnTeamsSigninVerifyStateAsync(ITurnContext<IInvokeActivity> turnContext, CancellationToken cancellationToken)
         {
             await _dialog.RunAsync(turnContext, _conversationState.CreateProperty<DialogState>(nameof(DialogState)), cancellationToken);
         }
+
+        protected async Task<string> SendInterimMessage(
+            ITurnContext turnContext,
+            string interimMessage,
+            int streamSequence,
+            string streamId,
+            string streamType
+        )
+        {
+            var streamSupported = _streaming && turnContext.Activity.ChannelId == "directline";
+            var updateSupported = _streaming && turnContext.Activity.ChannelId == "msteams";
+            // If we can neither stream or update, return null
+            if (streamType == "streaming" && !streamSupported && !updateSupported)
+            {
+                return null;
+            }
+            // If we can update messages, do so
+            if (streamType == "typing" && updateSupported)
+            {
+                if (streamId == null)
+                {
+                    var createActivity = await turnContext.SendActivityAsync(interimMessage);
+                    return createActivity.Id;
+                }
+                else
+                {
+                    var updateMessage = new Activity
+                    {
+                        Text = interimMessage,
+                        Type = "message",
+                        Id = streamId
+                    };
+                    var updateActivity = await turnContext.UpdateActivityAsync(updateMessage);
+                    return updateActivity.Id;
+                }
+            }
+            // If we can stream messages, do so
+            var channelData = new Dictionary<string, object>() {
+                {"streamId", streamId},
+                {"streamSequence", streamSequence},
+                {"streamType", streamType == "typing" ? "streaming" : "final"}
+            };
+            var message = new Activity
+            {
+                ChannelData = streamSupported ? channelData : null,
+                Text = interimMessage,
+                Type = streamType
+            };
+            var activity = await turnContext.SendActivityAsync(message);
+            return activity.Id;
+        }
+
     }
 }

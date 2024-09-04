@@ -163,6 +163,9 @@ namespace GenAIBot.Bots
             {
                 foreach (var attachment in turnContext.Activity.Attachments)
                 {
+                    if (attachment.ContentUrl == null) {
+                        continue;
+                    }
                     filesUploaded = true;
                     // Get file contents as stream
                     using var client = new HttpClient();

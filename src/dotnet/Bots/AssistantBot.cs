@@ -8,7 +8,6 @@ namespace GenAIBot.Bots
         private readonly string _instructions;
         private readonly string _welcomeMessage;
         private readonly string _assistantId;
-        private readonly bool _streaming;
         private readonly AssistantClient _assistantClient;
         private readonly ChatClient _chatClient;
         private readonly FileClient _fileClient;
@@ -25,7 +24,6 @@ namespace GenAIBot.Bots
             _assistantId = config["AZURE_OPENAI_ASSISTANT_ID"];
             _instructions = config["LLM_INSTRUCTIONS"];
             _welcomeMessage = config.GetValue("LLM_WELCOME_MESSAGE", "Hello and welcome to the Assistant Bot Dotnet!");
-            _streaming = config.GetValue("AZURE_OPENAI_STREAMING", false);
         }
 
         // Modify onMembersAdded as needed
@@ -141,17 +139,7 @@ namespace GenAIBot.Bots
             ThreadRun currentRun = null;
             string activityId;
             int streamSequence = 1;
-
-            var firstMessage = new Activity
-            {
-                ChannelData = new Dictionary<string, object>() {
-                {"streamSequence", streamSequence},
-                {"streamType", "informative"}
-            },
-                Text = "Typing...",
-                Type = "typing"
-            };
-            activityId = (await turnContext.SendActivityAsync(firstMessage)).Id;
+            activityId = await SendInterimMessage(turnContext, "Typing...", streamSequence, null, "typing");
 
             await foreach (StreamingUpdate evt in run)
             {
@@ -178,19 +166,10 @@ namespace GenAIBot.Bots
                     {
                         currentMessage += messageContentUpdate.Text;
                         streamSequence++;
-                        var msg = new Activity
+                        // Flush content every 50 messages
+                        if (streamSequence % 50 == 0)
                         {
-                            ChannelData = new Dictionary<string, object>() {
-                            {"streamId", activityId},
-                            {"streamSequence", streamSequence},
-                            {"streamType", "streaming"}
-                        },
-                            Id = activityId,
-                            Type = "typing",
-                            Text = currentMessage
-                        };
-                        if (_streaming) {
-                            turnContext.SendActivityAsync(msg);
+                            await SendInterimMessage(turnContext, currentMessage, streamSequence, activityId, "typing");
                         }
                     }
                     else if (messageContentUpdate.ImageFileId != null)
@@ -209,20 +188,7 @@ namespace GenAIBot.Bots
 
             // Add assistant message to history
             conversationData.AddTurn("assistant", currentMessage);
-
-            streamSequence++;
-            var finalMsg = new Activity
-            {
-                ChannelData = new Dictionary<string, object>() {
-                {"streamId", activityId},
-                {"streamSequence", streamSequence},
-                {"streamType", "final"}
-            },
-                Id = activityId,
-                Text = currentMessage,
-                Type = "message"
-            };
-            await turnContext.SendActivityAsync(finalMsg);
+            await SendInterimMessage(turnContext, currentMessage, ++streamSequence, activityId, "message");
         }
 
         protected async Task<bool> HandleFileUploads(ITurnContext turnContext, AssistantThread thread, ConversationData conversationData, CancellationToken cancellationToken)
@@ -233,6 +199,9 @@ namespace GenAIBot.Bots
             {
                 foreach (var attachment in turnContext.Activity.Attachments)
                 {
+                    if (attachment.ContentUrl == null) {
+                        continue;
+                    }
                     filesUploaded = true;
                     // Add file to attachments in case we need to reference it in Function Calling
                     conversationData.Attachments.Add(new()
