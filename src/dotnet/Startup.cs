@@ -97,12 +97,15 @@ namespace GenAIBot
             // Add the Login dialog
             services.AddSingleton<LoginDialog>();
 
-            services.AddSingleton(new AzureSearchChatDataSource()
+            if (configuration.GetValue("AZURE_SEARCH_API_ENDPOINT", "") != "")
             {
-                Endpoint = new Uri(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")),
-                IndexName = configuration.GetValue<string>("AZURE_SEARCH_INDEX"),
-                Authentication = DataSourceAuthentication.FromSystemManagedIdentity()
-            });
+                services.AddSingleton(new AzureSearchChatDataSource()
+                {
+                    Endpoint = new Uri(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")),
+                    IndexName = configuration.GetValue<string>("AZURE_SEARCH_INDEX"),
+                    Authentication = DataSourceAuthentication.FromSystemManagedIdentity()
+                });
+            }
 
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
             switch (configuration.GetValue<string>("GEN_AI_IMPLEMENTATION"))

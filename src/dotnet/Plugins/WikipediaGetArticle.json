@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "wikipedia_get_article",
+    "description": "Get the summary of a Wikipedia article.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "article_name": {
+          "type": "string",
+          "description": "The name of the Wikipedia article"
+        }
+      },
+      "required": [
+        "article_name"
+      ]
+    }
+  }
+}

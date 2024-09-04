@@ -18,6 +18,7 @@ class StateManagementBot extends ActivityHandler {
             this.ssoEnabled = false
         }
         this.ssoConfigName = process.env.SSO_CONFIG_NAME || "default"
+        this.streaming = process.env.AZURE_OPENAIthis.streaming || false
     }
 
     async run(context) {
@@ -61,7 +62,56 @@ class StateManagementBot extends ActivityHandler {
     async handleLogout(turnContext) {
         const userTokenClient = turnContext.turnState.get(turnContext.adapter.UserTokenClientKey);
         await userTokenClient.signOutUser(turnContext.activity.from.id, this.ssoConfigName, turnContext.activity.channelId);
-        await turnContext.sendActivityAsync("Signed out");
+        await turnContext.sendActivity("Signed out");
+    }
+
+    async sendInterimMessage(
+        turnContext,
+        interimMessage,
+        streamSequence,
+        streamId,
+        streamType
+    )
+    {
+        var streamSupported = this.streaming && turnContext.activity.channelId == "directline";
+        var updateSupported = this.streaming && turnContext.activity.channelId == "msteams";
+        // If we can neither stream or update, return null
+        if (streamType == "typing" && !streamSupported && !updateSupported)
+        {
+            return null;
+        }
+        // If we can update messages, do so
+        if (updateSupported)
+        {
+            if (streamId == null)
+            {
+                var createActivity = await turnContext.sendActivity(interimMessage);
+                return createActivity.id;
+            }
+            else
+            {
+                var updateMessage = {
+                    text: interimMessage,
+                    type: "message",
+                    id: streamId
+                };
+                var updateActivity = await turnContext.updateActivity(updateMessage);
+                return updateActivity.id;
+            }
+        }
+        // If we can stream messages, do so
+        var channelData = {
+            "streamId": streamId,
+            "streamSequence": streamSequence,
+            "streamType": streamType == "typing" ? "streaming" : "final"
+        };
+        var message = {
+            channel_data: streamSupported ? channelData : null,
+            text: interimMessage,
+            type: streamType
+        };
+        var activity = await turnContext.sendActivity(message);
+        return activity.Id;
     }
 }
 

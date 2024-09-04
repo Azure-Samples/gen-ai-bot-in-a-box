@@ -56,3 +56,43 @@ class StateManagementBot(ActivityHandler):
         user_token_client = turn_context.turn_state.get(UserTokenClient.__name__, None)
         await user_token_client.sign_out_user(turn_context.activity.from_property.id, self.sso_config_name, turn_context.activity.channel_id)
         await turn_context.send_activity("Signed out")
+
+    async def send_interim_message(
+        self,
+        turn_context,
+        interim_message,
+        stream_sequence,
+        stream_id,
+        stream_type
+    ):
+        stream_supported = self.streaming and turn_context.activity.channel_id == "directline"
+        update_supported = self.streaming and turn_context.activity.channel_id == "msteams"
+        # If we can neither stream or update, return null
+        if stream_type == "typing" and not stream_supported and not update_supported:
+            return None
+        # If we can update messages, do so
+        if update_supported:
+            if stream_id == None:
+                create_activity = await turn_context.sendActivity(interim_message)
+                return create_activity.id
+            else:
+                update_message = {
+                    "text": interim_message,
+                    "type": "message",
+                    "id": stream_id
+                }
+                update_activity = await turn_context.update_activity(update_message)
+                return update_activity.id
+        # If we can stream messages, do so
+        channel_data = {
+            "streamId": stream_id,
+            "streamSequence": stream_sequence,
+            "streamType": "streaming" if stream_type == "typing" else "final"
+        }
+        message = {
+            "channel_data": channel_data if stream_supported else None,
+            "text": interim_message,
+            "type": stream_type
+        }
+        activity = await turn_context.send_activity(message)
+        return activity.id

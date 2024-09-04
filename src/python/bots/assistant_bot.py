@@ -12,7 +12,7 @@ from botbuilder.schema import ChannelAccount, CardAction, ActionTypes, Activity
 from botbuilder.dialogs import Dialog
 
 from openai import AzureOpenAI
-from openai.types.beta.assistant_stream_event import ThreadMessageDelta, ThreadRunRequiresAction, ThreadRunCreated
+from openai.types.beta.assistant_stream_event import ThreadMessageDelta, ThreadRunRequiresAction, ThreadRunCreated, ThreadRunFailed
 from openai.types.beta.threads import TextDeltaBlock, ImageFileDeltaBlock
 
 from data_models import ConversationData, Attachment
@@ -125,18 +125,12 @@ class AssistantBot(StateManagementBot):
         current_run_id = ""
         activity_id = ""
         stream_sequence = 1
-
-        firstMessage = Activity(
-            channel_data={
-                "streamSequence": stream_sequence,
-                "streamType": "informative"
-            },
-            text="Typing...",
-            type="typing"
-        )
-        activity_id = (await turn_context.send_activity(firstMessage)).id
+        activity_id = await self.send_interim_message(turn_context, "Typing...", stream_sequence, None, "typing")
 
         for event in run:
+            if type(event) == ThreadRunFailed:
+                current_message = event.data.last_error.message
+                break
             if type(event) == ThreadRunCreated:
                 current_run_id = event.data.id
             if type(event) == ThreadRunRequiresAction:
@@ -152,17 +146,7 @@ class AssistantBot(StateManagementBot):
                 if type(deltaBlock) == TextDeltaBlock:
                     current_message += deltaBlock.text.value
                     stream_sequence += 1
-                    interim_message = Activity(
-                        channel_data={
-                            "streamId": activity_id,
-                            "streamSequence": stream_sequence,
-                            "streamType": "streaming"
-                        },
-                        text=current_message,
-                        type="typing"
-                    )
-                    if (self.streaming):
-                        turn_context.send_activity(interim_message)
+                    await self.send_interim_message(turn_context, current_message, stream_sequence, activity_id, "typing")
 
                 elif type(deltaBlock) == ImageFileDeltaBlock: 
                     current_message += f"![{deltaBlock.image_file.file_id}](/api/files/{deltaBlock.image_file.file_id})"
@@ -179,17 +163,7 @@ class AssistantBot(StateManagementBot):
 
         # Respond back to user
         stream_sequence += 1
-        finalMsg = Activity(
-            channel_data={
-                "streamId": activity_id,
-                "stream_sequence": stream_sequence,
-                "streamType": "final"
-            },
-            id= activity_id,
-            text= current_message,
-            type= "message"
-        )
-        await turn_context.send_activity(finalMsg)
+        await self.send_interim_message(turn_context, current_message, stream_sequence, activity_id, "message")
     
 
     # Helper to handle file uploads from user
@@ -198,6 +172,8 @@ class AssistantBot(StateManagementBot):
         # Check if incoming message has attached files
         if turn_context.activity.attachments is not None:
             for attachment in turn_context.activity.attachments:
+                if attachment.content_url == None:
+                    continue
                 files_uploaded = True
                 # Add file to attachments in case we need to reference it in Function Calling
                 conversation_data.attachments.append(Attachment(

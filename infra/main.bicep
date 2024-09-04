@@ -47,9 +47,9 @@ param searchName string = ''
 @description('Whether to deploy shared private links from AI Search')
 param deploySharedPrivateLinks bool = deploySearch
 @description('Whether to deploy an AI Hub')
-param deployAIHub bool = true
+param deployAIHub bool = false
 @description('Whether to deploy a sample AI Project')
-param deployAIProject bool = true
+param deployAIProject bool = false
 
 
 // Other configurations

@@ -1,10 +1,4 @@
 using System.ComponentModel;
-using System.Threading.Tasks;
-using Microsoft.BotBuilderSamples;
-using System.Net.Http;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Schema;
-using Microsoft.SemanticKernel;
 using System.Text.Encodings.Web;
 
 namespace Plugins;

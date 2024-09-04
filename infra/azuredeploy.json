@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.29.47.4906",
-      "templateHash": "15288699990971423018"
+      "templateHash": "16705163917672247143"
     }
   },
   "parameters": {
@@ -150,14 +150,14 @@
     },
     "deployAIHub": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Whether to deploy an AI Hub"
       }
     },
     "deployAIProject": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Whether to deploy a sample AI Project"
       }

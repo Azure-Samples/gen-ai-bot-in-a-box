@@ -93,7 +93,7 @@ namespace Microsoft.BotBuilderSamples
             var streamSupported = _streaming && turnContext.Activity.ChannelId == "directline";
             var updateSupported = _streaming && turnContext.Activity.ChannelId == "msteams";
             // If we can neither stream or update, return null
-            if (streamType == "streaming" && !streamSupported && !updateSupported)
+            if (streamType == "typing" && !streamSupported && !updateSupported)
             {
                 return null;
             }

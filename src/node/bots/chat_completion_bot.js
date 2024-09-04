@@ -25,10 +25,7 @@ class ChatCompletionBot extends StateManagementBot {
             let conversationData = await this.conversationDataAccessor.get(context, new ConversationData([]));
 
             // Add user message to history
-            conversationData.history.push(new ConversationTurn('user', context.activity.text));
-            if (conversationData.history.length >= conversationData.max_turns) {
-                conversationData.history.splice(1, 1);
-            }
+            conversationData.addTurn('user', context.activity.text);
 
             let completion = await this.aoaiClient.chat.completions.create(
                 { 
@@ -49,6 +46,33 @@ class ChatCompletionBot extends StateManagementBot {
             await context.sendActivity(response);
             next();
         });
+    }
+
+    async handleFileUploads(context, conversationData) {
+        let filesUploaded = false
+        // Check if incoming message has attached files
+        if (context.activity.attachments) {
+            for (let attachment of context.activity.attachments) {
+                if (attachment.contentUrl == null) {
+                    continue;
+                }
+                filesUploaded = true
+                // Add file to attachments in case we need to reference it in Function Calling
+                conversationData.attachments.push({
+                    name: attachment.name,
+                    contentType: attachment.contentType,
+                    url: attachment.contentUrl
+                })
+                // If attachment is an image, add it to the conversation history as base64
+                if (attachment.contentType.includes("image"))
+                {
+
+                    let data = await fetch(attachment.contentUrl)
+                    let bytes = Buffer.from(await data.arrayBuffer()).toString('base64')
+                    conversationData.addTurn("user", `File uploaded: ${attachment.Name}`, attachment.ContentType, bytes);
+                }
+            }
+        }
     }
 
 }

@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 const { MessageFactory, ActionTypes } = require('botbuilder');
-const { ConversationData, ConversationTurn } = require('../data_models/conversation_data');
+const { ConversationData } = require('../data_models/conversation_data');
 const { StateManagementBot } = require('./state_management_bot');
 
 class AssistantBot extends StateManagementBot {
@@ -93,10 +93,7 @@ class AssistantBot extends StateManagementBot {
             }
 
             // Add user message to history
-            conversationData.history.push(new ConversationTurn('user', context.activity.text));
-            if (conversationData.history.length >= conversationData.max_turns) {
-                conversationData.history.splice(1, 1);
-            }
+            ConversationData.addTurn(conversationData, 'user', context.activity.text);
 
             // Send user message to thread
             await this.aoaiClient.beta.threads.messages.create(
@@ -135,19 +132,16 @@ class AssistantBot extends StateManagementBot {
         let activityId = ""
         let streamSequence = 1
 
-        let firstMessage = {
-            channel_data: {
-                streamSequence: streamSequence,
-                streamType: "streaming",
-            },
-            text: "Typing...",
-            type: "typing",
-        }
-        activityId = (await context.sendActivity(firstMessage)).id
+        activityId = await this.sendInterimMessage(context, currentMessage, streamSequence, null, "typing")
 
         for await (let event of run.iterator()) {
+            console.log(event)
             if (event.event == "thread.run.created")
                 currentRunId = event.data.id
+            if (event.event == "thread.run.failed") {
+                currentMessage = event.data.last_error.message
+                break
+            }
             if (event.event == "thread.run.requires_action") {
                 let tool_calls = event.data.required_action.submit_tool_outputs.tool_calls
                 for (let tool_call of tool_calls) {
@@ -163,19 +157,7 @@ class AssistantBot extends StateManagementBot {
                 let deltaBlock = event.data.delta.content[0]
                 if (deltaBlock.type == "text") {
                     currentMessage += event.data.delta.content[0].text.value;
-                    streamSequence += 1;
-                    let interimMessage = {
-                        channel_data: {
-                            streamId: activityId,
-                            streamSequence: streamSequence,
-                            streamType: "streaming",
-                        },
-                        text: currentMessage,
-                        type: "typing",
-                    }
-                    if (this.streaming) {
-                        await context.sendActivity(interimMessage);
-                    }
+                    await this.sendInterimMessage(context, currentMessage, ++streamSequence, activityId, "typing")
                 } else if (deltaBlock.type == "image_file") {
                     currentMessage += `![${deltaBlock.image_file.file_id}](/api/files/${deltaBlock.image_file.file_id})`
                 }
@@ -194,25 +176,10 @@ class AssistantBot extends StateManagementBot {
         }
 
         // Add assistant message to history
-        conversationData.history.push(new ConversationTurn('assistant', currentMessage));
-        if (conversationData.history.length >= conversationData.max_turns) {
-            conversationData.history.splice(1, 1);
-        }
+        ConversationData.addTurn(conversationData, 'assistant', currentMessage)
 
         // Respond back to user
-        streamSequence += 1
-        let finalMsg = {
-            channel_data: {
-                streamId: activityId,
-                streamSequence: streamSequence,
-                streamType: "final",
-            },
-            text: currentMessage,
-            type: "message",
-        }
-        await context.sendActivity(finalMsg)
-
-
+        await this.sendInterimMessage(context, currentMessage, ++streamSequence, activityId, "message")
     }
 
     // Helper to handle file uploads from user
@@ -221,6 +188,9 @@ class AssistantBot extends StateManagementBot {
         // Check if incoming message has attached files
         if (context.activity.attachments != null) {
             for (const attachment of context.activity.attachments) {
+                if (attachment.contentUrl == null) {
+                    continue;
+                }
                 filesUploaded = true;
                 // Add file to attachments in case we need to reference it in Function Calling
                 conversationData.attachments.push({
@@ -230,10 +200,7 @@ class AssistantBot extends StateManagementBot {
                 })
 
                 // Add file upload notice to conversation history, frontend, and assistant
-                conversationData.history.push(new ConversationTurn('user', `File uploaded: ${attachment.name}`));
-                if (conversationData.history.length >= conversationData.max_turns) {
-                    conversationData.history.splice(1, 1);
-                }
+                ConversationData.addTurn(conversationData, 'user', `File uploaded: ${attachment.name}`)
                 await context.sendActivity(`File uploaded: ${attachment.name}`)
                 await this.aoaiClient.beta.threads.messages.create(
                     threadId,

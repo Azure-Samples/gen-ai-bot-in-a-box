@@ -1,6 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json.Nodes;
+using Newtonsoft.Json;
+
 namespace GenAIBot.Bots
 {
     public class AssistantBot<T> : StateManagementBot<T> where T : Dialog
@@ -20,7 +25,7 @@ namespace GenAIBot.Bots
             _chatClient = aoaiClient.GetChatClient(config["AZURE_OPENAI_DEPLOYMENT_NAME"]);
             _fileClient = aoaiClient.GetFileClient();
             _httpClient = httpClient;
-            
+
             _assistantId = config["AZURE_OPENAI_ASSISTANT_ID"];
             _instructions = config["LLM_INSTRUCTIONS"];
             _welcomeMessage = config.GetValue("LLM_WELCOME_MESSAGE", "Hello and welcome to the Assistant Bot Dotnet!");
@@ -146,20 +151,25 @@ namespace GenAIBot.Bots
                 if (evt is RunUpdate)
                 {
                     var runUpdate = (RunUpdate)evt;
+                    if (runUpdate.Value.Status == RunStatus.Failed)
+                    {
+                        currentMessage = runUpdate.Value.LastError.Message;
+                        break;
+                    }
                     currentRun = runUpdate.Value;
                 }
-                else if (evt is RequiredActionUpdate)
+                if (evt is RequiredActionUpdate)
                 {
                     var requiredActionUpdate = (RequiredActionUpdate)evt;
                     var argumentsString = requiredActionUpdate.FunctionArguments;
-                    var arguments = JsonSerializer.Deserialize<Dictionary<string, string>>(argumentsString, new JsonSerializerOptions());
+                    var arguments = System.Text.Json.JsonSerializer.Deserialize<JsonNode>(argumentsString, new JsonSerializerOptions());
                     if (requiredActionUpdate.FunctionName == "image_query")
                     {
-                        var response = await ImageQuery(conversationData, arguments["query"], arguments["image_name"]);
+                        var response = await ImageQuery(conversationData, (string)arguments["query"], (string)arguments["image_name"]);
                         toolOutputs.Add(new ToolOutput(requiredActionUpdate.ToolCallId, response));
                     }
                 }
-                else if (evt is MessageContentUpdate)
+                if (evt is MessageContentUpdate)
                 {
                     var messageContentUpdate = (MessageContentUpdate)evt;
                     if (messageContentUpdate.Text != null)
@@ -199,7 +209,8 @@ namespace GenAIBot.Bots
             {
                 foreach (var attachment in turnContext.Activity.Attachments)
                 {
-                    if (attachment.ContentUrl == null) {
+                    if (attachment.ContentUrl == null)
+                    {
                         continue;
                     }
                     filesUploaded = true;
@@ -236,7 +247,6 @@ namespace GenAIBot.Bots
         {
             // Find image in attachments by name
             var image = conversationData.Attachments.Find(a => a.Name == image_name.Split('/').Last());
-            // Handle image not found
 
             // Read image.Url into BinaryData
             var byteArray = await _httpClient.GetByteArrayAsync(image.Url);

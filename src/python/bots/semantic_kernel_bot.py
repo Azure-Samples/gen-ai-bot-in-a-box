@@ -2,23 +2,17 @@
 # Licensed under the MIT License.
 
 import os
-from botbuilder.core import ConversationState, TurnContext, UserState, CardFactory
-from botbuilder.schema import ChannelAccount, Activity, ActivityTypes
+from botbuilder.core import ConversationState, TurnContext, UserState
+from botbuilder.schema import ChannelAccount
 from botbuilder.dialogs import Dialog
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import AzureOpenAI
 import semantic_kernel as sk
 from semantic_kernel.connectors.ai.open_ai import (
-    AzureAISearchDataSource,
     AzureChatCompletion,
     AzureChatPromptExecutionSettings,
     ExtraBody,
-    ApiKeyAuthentication
 )
-from semantic_kernel.connectors.ai.open_ai.prompt_execution_settings.azure_chat_prompt_execution_settings import (
-    AzureChatRequestBase
-)
-from pydantic import BaseModel
 from semantic_kernel.connectors.memory.azure_cognitive_search.azure_ai_search_settings import AzureAISearchSettings
 from semantic_kernel.contents import ChatHistory
 from semantic_kernel.functions import KernelArguments
@@ -26,7 +20,7 @@ from semantic_kernel.prompt_template import InputVariable, PromptTemplateConfig
     
 from data_models import ConversationData
 from .state_management_bot import StateManagementBot
-from utils import get_citations_card, replace_citations
+from utils import replace_citations
 
 class SemanticKernelBot(StateManagementBot):
 

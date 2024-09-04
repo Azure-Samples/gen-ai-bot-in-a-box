@@ -3,12 +3,17 @@
 
 namespace Microsoft.BotBuilderSamples
 {
+    public class ToolCall {
+        public string Id { get; set; }
+    }
     public class ConversationTurn
     {
         public string Role { get; set; } = null;
         public string Message { get; set; } = null;
         public string ImageData { get; set; } = null;
         public string ImageType { get; set; } = null;
+        public string ToolCallId { get; set; } = null;
+        public List<ChatToolCall> ToolCalls { get; set; } = null;
     }
     public class Attachment
     {
@@ -29,11 +34,11 @@ namespace Microsoft.BotBuilderSamples
         // Track attached documents
         public List<Attachment> Attachments = new List<Attachment>();
 
-        public void AddTurn(string role, string message, string imageType = null, string imageData = null)
+        public void AddTurn(string role, string message = "", string imageType = null, string imageData = null, string toolCallId = null, List<ChatToolCall> toolCalls = null)
         {
             if (imageType == null)
             {
-                History.Add(new ConversationTurn { Role = role, Message = message });
+                History.Add(new ConversationTurn { Role = role, Message = message, ToolCallId = toolCallId, ToolCalls = toolCalls });
             }
             else
             {
@@ -48,13 +53,14 @@ namespace Microsoft.BotBuilderSamples
         public List<ChatMessage> toMessages()
         {
             var messages = History.Select<ConversationTurn, ChatMessage>((turn, index) =>
-                turn.Role == "assistant" ? new AssistantChatMessage(turn.Message) :
+                turn.Role == "assistant" ? (turn.ToolCalls != null ? new AssistantChatMessage(toolCalls: turn.ToolCalls) : new AssistantChatMessage(turn.Message)) :
                 turn.Role == "user" ? new UserChatMessage(new ChatMessageContentPart[]{
                     turn.ImageType == null ? 
                         ChatMessageContentPart.CreateTextMessageContentPart(turn.Message) :
                         ChatMessageContentPart.CreateImageMessageContentPart(BinaryData.FromString(turn.ImageData), turn.ImageType)
                 }) :
-                new SystemChatMessage(turn.Message)).ToList();
+                turn.Role == "system" ? new SystemChatMessage(turn.Message) :
+                new ToolChatMessage(turn.ToolCallId, turn.Message)).ToList();
             return messages;
         }
 

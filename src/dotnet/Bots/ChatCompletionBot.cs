@@ -1,6 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using System.IO;
+using System.Text.Json.Nodes;
+using Plugins;
+
 namespace GenAIBot.Bots
 {
     public class ChatCompletionBot<T> : StateManagementBot<T> where T : Dialog
@@ -10,15 +14,25 @@ namespace GenAIBot.Bots
         private readonly AzureSearchChatDataSource _chatDataSource;
         private readonly HttpClient _httpClient;
         private readonly bool _streaming;
+        private readonly ChatCompletionOptions _chatCompletionOptions;
 
-        public ChatCompletionBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient, AzureSearchChatDataSource chatDataSource, HttpClient httpClient, T dialog)
+        public ChatCompletionBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient, HttpClient httpClient, T dialog, AzureSearchChatDataSource chatDataSource = null)
             : base(config, conversationState, userState, dialog)
         {
             _chatClient = aoaiClient.GetChatClient(config["AZURE_OPENAI_DEPLOYMENT_NAME"]);
             _instructions = config["LLM_INSTRUCTIONS"];
             _chatDataSource = chatDataSource;
             _httpClient = httpClient;
-            _streaming = config.GetValue("AZURE_OPENAI_STREAMING", false);
+
+            _chatCompletionOptions = new() { };
+            foreach (var plugin in new List<string>() {"./Plugins/WikipediaQuery.json", "./Plugins/WikipediaGetArticle.json"}) {
+                var dict = JsonSerializer.Deserialize<JsonNode>(File.ReadAllText(plugin))["function"];
+                _chatCompletionOptions.Tools.Add(ChatTool.CreateFunctionTool((string)dict["name"], (string)dict["description"], BinaryData.FromString(dict["parameters"].ToJsonString())));
+            }
+            if (_chatDataSource != null)
+            {
+                _chatCompletionOptions.AddDataSource(_chatDataSource);
+            }
         }
 
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
@@ -63,42 +77,48 @@ namespace GenAIBot.Bots
             // Add user message to history
             conversationData.AddTurn("user", turnContext.Activity.Text);
 
-            ChatCompletionOptions options = new();
-
-            if (_chatDataSource != null)
-            {
-                options.AddDataSource(_chatDataSource);
-            }
-
-            var completion = _chatClient.CompleteChatStreamingAsync(messages: conversationData.toMessages(), options: options);
+            var messages = conversationData.toMessages();
+            var completion = _chatClient.CompleteChatStreamingAsync(messages: messages, options: _chatCompletionOptions);
             await ProcessRunStreaming(completion, conversationData, turnContext, cancellationToken);
 
             return true;
         }
 
-        protected async Task ProcessRunStreaming(AsyncCollectionResult<StreamingChatCompletionUpdate> run, ConversationData conversationData, ITurnContext turnContext, CancellationToken cancellationToken)
+        protected async Task ProcessRunStreaming(AsyncCollectionResult<StreamingChatCompletionUpdate> run, ConversationData conversationData, ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
             // Start streaming response
             var currentMessage = "";
+            var currentToolName = "";
+            var currentToolId = "";
+            var currentToolArgs = "";
             IReadOnlyList<AzureChatCitation> citations = [];
             List<ToolOutput> toolOutputs = new();
             string activityId;
             int streamSequence = 1;
-
-            var firstMessage = new Activity
-            {
-                ChannelData = new Dictionary<string, object>() {
-                {"streamSequence", streamSequence},
-                {"streamType", "informative"}
-            },
-                Text = "Typing...",
-                Type = "typing"
-            };
-            activityId = (await turnContext.SendActivityAsync(firstMessage)).Id;
+            activityId = await SendInterimMessage(turnContext, "Typing...", ++streamSequence, null, "typing");
 
             await foreach (StreamingChatCompletionUpdate evt in run)
             {
-                // Get citations if they exist
+                if (evt.ToolCallUpdates.Count > 0)
+                {
+                    var update = evt.ToolCallUpdates[0];
+                    if (update.Id != null)
+                    {
+                        if (currentToolId != "")
+                        {
+                            await FlushToolCalls(turnContext, conversationData, toolOutputs, currentToolId, currentToolName, currentToolArgs);
+                        }
+                        currentToolId = update.Id;
+                        currentToolName = update.FunctionName;
+                        currentToolArgs = "";
+                    }
+                    if (update.FunctionArgumentsUpdate != null)
+                        currentToolArgs += update.FunctionArgumentsUpdate;
+                }
+                if (evt.FinishReason == ChatFinishReason.ToolCalls)
+                {
+                    await FlushToolCalls(turnContext, conversationData, toolOutputs, currentToolId, currentToolName, currentToolArgs);
+                }
                 if (evt.GetAzureMessageContext() != null)
                 {
                     citations = evt.GetAzureMessageContext().Citations;
@@ -108,21 +128,7 @@ namespace GenAIBot.Bots
                     if (messageContentUpdate.Text != null)
                     {
                         currentMessage += messageContentUpdate.Text;
-                        streamSequence++;
-                        var msg = new Activity
-                        {
-                            ChannelData = new Dictionary<string, object>() {
-                            {"streamId", activityId},
-                            {"streamSequence", streamSequence},
-                            {"streamType", "streaming"}
-                        },
-                            Id = activityId,
-                            Type = "typing",
-                            Text = currentMessage
-                        };
-                        if (_streaming) {
-                            turnContext.SendActivityAsync(msg);
-                        }
+                        await SendInterimMessage(turnContext, currentMessage, ++streamSequence, activityId, "typing");
                     }
                     else if (messageContentUpdate.ImageUri != null)
                     {
@@ -132,29 +138,47 @@ namespace GenAIBot.Bots
 
             }
 
+            // Recursively process the run with the tool outputs
+            if (toolOutputs.Count > 0)
+            {
+                var messages = conversationData.toMessages();
+                var newRun = _chatClient.CompleteChatStreamingAsync(messages: messages, options: _chatCompletionOptions);
+                await ProcessRunStreaming(newRun, conversationData, turnContext, cancellationToken);
+                return;
+            }
+
             // Add assistant message to history
             conversationData.AddTurn("assistant", currentMessage);
+            // Remove all tool calls from history
+            conversationData.History.RemoveAll(t => t.Role == "tool" || t.ToolCalls != null);
 
             streamSequence++;
-            var finalMsg = new Activity
-            {
-                ChannelData = new Dictionary<string, object>() {
-                {"streamId", activityId},
-                {"streamSequence", streamSequence},
-                {"streamType", "final"}
-            },
-                Id = activityId,
-                Text = currentMessage,
-                Type = "message"
-            };
-            await turnContext.SendActivityAsync(finalMsg);
-            
+            await SendInterimMessage(turnContext, currentMessage, ++streamSequence, activityId, "message");
+
             if (citations.Count > 0)
             {
                 var message = MessageFactory.Attachment(Utils.Utils.GetCitationsCard(citations));
                 await turnContext.SendActivityAsync(message, cancellationToken);
             }
+
         }
+        protected async Task FlushToolCalls(ITurnContext<IMessageActivity> turnContext, ConversationData conversationData, List<ToolOutput> toolOutputs, string currentToolId, string currentToolName, string currentToolArgs)
+        {
+            var arguments = JsonSerializer.Deserialize<JsonNode>(currentToolArgs, new JsonSerializerOptions());
+            string response = "";
+            if (currentToolName == "wikipedia_query")
+            {
+                response = await new WikipediaPlugin(conversationData, turnContext).QueryArticles(arguments["query"].ToString());
+            }
+            if (currentToolName == "wikipedia_get_article")
+            {
+                response = await new WikipediaPlugin(conversationData, turnContext).GetArticle(arguments["article_name"].ToString());
+            }
+            toolOutputs.Add(new ToolOutput(currentToolId, response));
+            conversationData.AddTurn("assistant", toolCalls: new List<ChatToolCall>() { ChatToolCall.CreateFunctionToolCall(currentToolId, currentToolName, currentToolArgs) });
+            conversationData.AddTurn("tool", toolCallId: currentToolId, message: response);
+        }
+
         protected async Task<bool> HandleFileUploads(ITurnContext turnContext, ConversationData conversationData, CancellationToken cancellationToken)
         {
             var filesUploaded = false;
@@ -163,15 +187,11 @@ namespace GenAIBot.Bots
             {
                 foreach (var attachment in turnContext.Activity.Attachments)
                 {
-                    if (attachment.ContentUrl == null) {
+                    if (attachment.ContentUrl == null)
+                    {
                         continue;
                     }
                     filesUploaded = true;
-                    // Get file contents as stream
-                    using var client = new HttpClient();
-                    using var response = await client.GetAsync(attachment.ContentUrl);
-                    using var stream = response.Content.ReadAsStream();
-
                     // Add file to attachments in case we need to reference it in Function Calling
                     conversationData.Attachments.Add(new()
                     {

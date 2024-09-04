@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "wikipedia_query",
+    "description": "Get a list of articles about a topic from Wikipedia.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The topic to query"
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  }
+}

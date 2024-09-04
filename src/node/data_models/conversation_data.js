@@ -1,7 +1,9 @@
 class ConversationTurn {
-    constructor(role = null, content = null) {
+    constructor(role, message, imageType, imageData) {
         this.role = role;
-        this.content = content;
+        this.message = message;
+        this.imageType = imageType;
+        this.imageData = imageData;
     }
 }
 
@@ -11,6 +13,13 @@ class ConversationData {
         this.history = history;
         this.max_turns = max_turns;
         this.attachments = [];
+    }
+
+    static addTurn(conversationData, role, message, imageType, imageData) {
+        conversationData.history.push(new ConversationTurn(role, message, imageType, imageData));
+        if (conversationData.history.length >= conversationData.max_turns) {
+            conversationData.history.splice(1, 1);
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 {
-    "name": "GenAIBot",
+    "name": "gen-ai-bot",
     "version": "1.0.0",
     "description": "Bot Builder v4 echo bot sample",
     "author": "Microsoft",
@@ -17,21 +17,11 @@
     },
     "dependencies": {
         "@azure/identity": "^4.4.1",
-        "@azure/msal-node": "^2.13.1",
-        "botbuilder": "~4.22.1",
-        "botbuilder-azure": "^4.22.2",
-        "botbuilder-dialogs": "4.22",
-        "dotenv": "^8.6.0",
-        "openai": "^4.47.3",
-        "restify": "~10.0.0"
-    },
-    "devDependencies": {
-        "eslint": "^7.0.0",
-        "eslint-config-standard": "^14.1.1",
-        "eslint-plugin-import": "^2.20.2",
-        "eslint-plugin-node": "^11.1.0",
-        "eslint-plugin-promise": "^4.2.1",
-        "eslint-plugin-standard": "^4.0.1",
-        "nodemon": "^3.1.4"
+        "botbuilder": "^4.23.0",
+        "botbuilder-azure": "^4.23.0",
+        "botbuilder-dialogs": "4.23.0",
+        "dotenv": "^16.4.5",
+        "openai": "^4.57.1",
+        "restify": "^11.1.0"
     }
 }
