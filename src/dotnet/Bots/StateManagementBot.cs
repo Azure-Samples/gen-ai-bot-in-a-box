@@ -98,7 +98,7 @@ namespace Microsoft.BotBuilderSamples
                 return null;
             }
             // If we can update messages, do so
-            if (streamType == "typing" && updateSupported)
+            if (updateSupported)
             {
                 if (streamId == null)
                 {
