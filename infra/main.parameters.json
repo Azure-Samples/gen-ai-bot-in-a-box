@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "resourceGroupName": {
-      "value": "foobar"
+      "value": "${AZURE_ENV_NAME}"
     },
     "environmentName": {
       "value": "${AZURE_ENV_NAME}"
