@@ -19,6 +19,7 @@ param privateEndpointSubnetId string
 param appSubnetId string
 param privateDnsZoneId string
 
+var backendLanguage = startsWith(linuxFxVersion, 'python') ? 'python' : startsWith(linuxFxVersion, 'node') ? 'node' : 'dotnet'
 
 resource aiServices 'Microsoft.CognitiveServices/accounts@2023-05-01' existing = {
   name: aiServicesName
@@ -76,7 +77,9 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
       http20Enabled: true
       linuxFxVersion: linuxFxVersion
       webSocketsEnabled: true
-      appCommandLine: startsWith(linuxFxVersion, 'python') ? 'gunicorn --bind 0.0.0.0 --timeout 600 app:app --worker-class aiohttp.GunicornWebWorker' : ''
+      appCommandLine: startsWith(linuxFxVersion, 'python')
+        ? 'gunicorn --bind 0.0.0.0 --timeout 600 app:app --worker-class aiohttp.GunicornWebWorker'
+        : ''
       appSettings: [
         {
           name: 'MicrosoftAppType'
@@ -184,7 +187,7 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'ENABLE_ORYX_BUILD'
-          value: startsWith(linuxFxVersion,'dotnet') ? 'false' : 'true'
+          value: startsWith(linuxFxVersion, 'dotnet') ? 'false' : 'true'
         }
         {
           name: 'DEBUG'
@@ -282,7 +285,7 @@ resource backendAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-0
         name: 'private-endpoint-connection'
         properties: {
           privateLinkServiceId: backend.id
-          groupIds: [ 'sites' ]
+          groupIds: ['sites']
         }
       }
     ]
@@ -315,7 +318,7 @@ resource frontentdAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2021-05
         name: 'private-endpoint-connection'
         properties: {
           privateLinkServiceId: frontend.id
-          groupIds: [ 'sites' ]
+          groupIds: ['sites']
         }
       }
     ]

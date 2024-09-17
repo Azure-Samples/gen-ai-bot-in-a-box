@@ -10,10 +10,6 @@ foreach ($line in (& azd env get-values)) {
     }
 }
 
-if ($envValues["IMPLEMENTATION"] -ne "assistant") {
-    return
-}
-
 Write-Output "Switching MSI to Single Tenant mode..."
 
 $AOAI_API_KEY=az cognitiveservices account keys list -n $env:AI_SERVICES_NAME -g $env:AZURE_RESOURCE_GROUP_NAME --query key1 -o tsv

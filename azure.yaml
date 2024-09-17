@@ -18,4 +18,15 @@ services:
     #     project: src/python
     #     host: appservice
     #     language: python
-    
+hooks:
+    postprovision:
+      windows:
+        shell: pwsh
+        run: ./scripts/setupSso.ps1;./scripts/setupWebchat.ps1;./scripts/createAssistant.ps1;
+        interactive: false
+        continueOnError: false
+      posix:
+        shell: sh
+        run: ./scripts/setupSso.sh;./scripts/setupWebchat.sh;./scripts/createAssistant.sh;
+        interactive: false
+        continueOnError: false

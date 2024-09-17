@@ -4,9 +4,12 @@ targetScope = 'subscription'
 @description('Name of the environment')
 param environmentName string
 @description('Principal ID to grant access to the AI services. Leave empty to skip')
-param myPrincipalId string = ''
+param myPrincipalId string
+@description('Current principal type being used')
+@allowed(['User', 'ServicePrincipal'])
+param myPrincipalType string
 @description('IP addresses to grant access to the AI services. Leave empty to skip')
-param allowedIpAddresses string = ''
+param allowedIpAddresses string
 var allowedIpAddressesArray = !empty(allowedIpAddresses) ? split(allowedIpAddresses, ',') : []
 @description('Resource group name for the AI services. Defauts to rg-<environmentName>')
 param resourceGroupName string = ''
@@ -61,6 +64,8 @@ param cosmosName string = ''
 param appPlanName string = ''
 @description('Name of the App Services Instance. Automatically generated if left blank')
 param appName string = ''
+@description('Whether to enable authentication (requires Entra App Developer role)')
+param enableAuthentication bool
 
 @description('Gen AI model name and version to deploy')
 @allowed(['gpt-4,1106-Preview', 'gpt-4,0125-Preview', 'gpt-4o,2024-05-13'])
@@ -127,7 +132,7 @@ var privateEndpointSubnetId = publicNetworkAccess == 'Disabled' ? m_network.outp
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: names.resourceGroup
   location: location
-  tags: tags
+  tags: union(tags, {'azd-env-name': environmentName})
 }
 
 resource dnsResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = if (publicNetworkAccess == 'Disabled') {
@@ -174,8 +179,8 @@ module m_msi 'modules/msi.bicep' = {
 }
 
 // AI Services module
-module m_aiservices 'modules/aistudio/aiServices.bicep' = {
-  name: 'deploy_aiServices'
+module m_aiservices 'modules/aistudio/aiservices.bicep' = {
+  name: 'deploy_aiservices'
   scope: resourceGroup
   params: {
     location: location
@@ -187,7 +192,7 @@ module m_aiservices 'modules/aistudio/aiServices.bicep' = {
     grantAccessTo: [
       {
         id: myPrincipalId
-        type: 'User'
+        type: myPrincipalType
       }
       {
         id: m_msi.outputs.msiPrincipalID
@@ -227,7 +232,7 @@ module m_sharedPrivateLinks 'modules/aistudio/sharedPrivateLinks.bicep' = if (de
     grantAccessTo: [
       {
         id: myPrincipalId
-        type: 'User'
+        type: myPrincipalType
       }
       {
         id: m_msi.outputs.msiPrincipalID
@@ -255,7 +260,7 @@ module m_storage 'modules/aistudio/storage.bicep' = {
     grantAccessTo: [
       {
         id: myPrincipalId
-        type: 'User'
+        type: myPrincipalType
       }
       {
         id: m_msi.outputs.msiPrincipalID
@@ -318,7 +323,7 @@ module m_cosmos 'modules/cosmos.bicep' = {
     grantAccessTo: [
       {
         id: myPrincipalId
-        type: 'User'
+        type: myPrincipalType
       }
       {
         id: m_msi.outputs.msiPrincipalID
@@ -390,3 +395,4 @@ output BACKEND_APP_HOSTNAME string = m_app.outputs.backendHostName
 output BOT_NAME string = m_bot.outputs.name
 output STACK string = split(stack, '|')[0]
 output IMPLEMENTATION string = implementation
+output ENABLE_AUTH bool = enableAuthentication

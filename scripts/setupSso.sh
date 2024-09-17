@@ -9,17 +9,39 @@ done <<EOF
 $(azd env get-values)
 EOF
 
-# Create an App Registration and retrieve its ID and Client ID.
-APP=$(az ad app create --display-name $BACKEND_APP_NAME --web-redirect-uris https://token.botframework.com/.auth/web/redirect)
-APP_ID=$(echo $APP | jq -r .id)
-CLIENT_ID=$(echo $APP | jq -r .appId)
+if [ "$ENABLE_AUTH" != "true" ]; then
+    echo "Skipping SSO configuration..."
+    exit 0
+fi
 
-# Create a client secret for the newly created app
-SECRET=$(az ad app credential reset --id $APP_ID)
-CLIENT_SECRET=$(echo $SECRET | jq -r .password)
+echo "Setting up SSO"
 
-# Create an SSO configuration for your bot, passing in the App Registration details
-az bot authsetting create --resource-group $AZURE_RESOURCE_GROUP_NAME --name $BOT_NAME --setting-name default --client-id $CLIENT_ID --client-secret $CLIENT_SECRET --parameters TenantId=$AZURE_TENANT_ID --service aadv2 --provider-scope-string User.Read
+# If App Registration was not created, create it
+if [ -z "$CLIENT_ID" ]; then
+    echo "Creating app registration..."
+    APP=$(az ad app create \
+        --display-name $BACKEND_APP_NAME \
+        --web-redirect-uris https://$FRONTEND_APP_NAME.azurewebsites.net/.auth/login/aad/callback \
+        --enable-id-token-issuance \
+        --required-resource-accesses '[{
+            "resourceAppId": "00000003-0000-0000-c000-000000000000",
+            "resourceAccess": [
+                {
+                    "id": "37f7f235-527c-4136-accd-4a02d197296e",
+                    "type": "Scope"
+                }
+           ]
+        }]' \
+    )
+    APP_ID=$(echo $APP | jq -r .id)
+    CLIENT_ID=$(echo $APP | jq -r .appId)
+fi
 
-# Configure the App Service to use the SSO configuration.
-az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $BACKEND_APP_NAME --settings SSO_ENABLED=true SSO_CONFIG_NAME=default
+# Set up authorization for frontend app
+az webapp auth config-version upgrade -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME || true
+az webapp auth update -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME --enabled true \
+    --action RedirectToLoginPage  --redirect-provider azureactivedirectory
+az webapp auth microsoft update -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME \
+    --allowed-token-audiences https://$FRONTEND_APP_NAME.azurewebsites.net/.auth/login/aad/callback \
+    --client-id $CLIENT_ID \
+    --issuer https://sts.windows.net/$AZURE_TENANT_ID/

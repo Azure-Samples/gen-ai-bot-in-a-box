@@ -13,16 +13,16 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
-  - task: setup-azd@0 
-    displayName: Install azd
+  # - task: setup-azd@0 
+  #   displayName: Install azd
 
   # If you can't install above task in your organization, you can comment it and uncomment below task to install azd
-  # - task: Bash@3
-  #   displayName: Install azd
-  #   inputs:
-  #     targetType: 'inline'
-  #     script: |
-  #       curl -fsSL https://aka.ms/install-azd.sh | bash
+  - task: Bash@3
+    displayName: Install azd
+    inputs:
+      targetType: 'inline'
+      script: |
+        curl -fsSL https://aka.ms/install-azd.sh | bash
 
   # azd delegate auth to az to use service connection with AzureCLI@2
   - pwsh: |
@@ -30,17 +30,34 @@ steps:
     displayName: Configure AZD to Use AZ CLI Authentication.
 
   - task: AzureCLI@2
-    displayName: Provision Infrastructure
+    displayName: Install Az Auth v2
     inputs:
       azureSubscription: azconnection
       scriptType: bash
       scriptLocation: inlineScript
       inlineScript: |
-        azd provision --no-prompt
+        az extension add --name authV2 -y
     env:
       AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
+      AZD_INITIAL_ENVIRONMENT_CONFIG: $(AZD_INITIAL_ENVIRONMENT_CONFIG)
+
+
+  - task: AzureCLI@2
+    displayName: Provision Infrastructure
+    inputs:
+      azureSubscription: azconnection
+      addSpnToEnvironment: true
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        azd env set --no-prompt ALLOWED_IP_ADDRESSES $(dig +short myip.opendns.com @resolver1.opendns.com -4) && CLIENT_ID=$servicePrincipalId azd provision --no-prompt
+    env:
+      AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      AZURE_ENV_NAME: $(AZURE_ENV_NAME)
+      AZURE_LOCATION: $(AZURE_LOCATION)
+      AZD_INITIAL_ENVIRONMENT_CONFIG: $(AZD_INITIAL_ENVIRONMENT_CONFIG)
 
   - task: AzureCLI@2
     displayName: Deploy Application
@@ -49,7 +66,7 @@ steps:
       scriptType: bash
       scriptLocation: inlineScript
       inlineScript: |
-        azd deploy --no-prompt
+         azd deploy --no-prompt
     env:
       AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
