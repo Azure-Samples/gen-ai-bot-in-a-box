@@ -39,12 +39,11 @@ The solution can be adapted for your own use cases:
 
 ## Deploy the Solution
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Fgen-ai-bot-in-a-box%2Fmain%2Finfra%2Fazuredeploy.json)
-
 ### Prerequisites for running locally:
 1. Install latest version of [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-windows?view=azure-cli-latest)
 2. Install latest version of [Bicep](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/install)
 3. Install latest version of [Azure Developer CLI](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)
+4. Install [Node JS](https://nodejs.org/en)
 
 ### Deploy to Azure
 
@@ -61,30 +60,12 @@ git clone https://github.com/Azure-Samples/gen-ai-bot-in-a-box
 ```
 cd gen-ai-bot-in-a-box
 azd auth login
-azd env new
 azd up
 ```
 
-You will be prompted for an environment name, a subscription, location and a few other customization parameters. Make sure to select the language you chose on the previous step, or deployment will fail.
+You will be prompted for an environment name, a subscription, location and a few other customization parameters. Make sure to select the programming language you chose on the previous step, or deployment will fail.
 
 ## Run the Solution
-
-### Additional Step if using Assistants API implementation
-
-Set up an Azure OpenAI Assistant. You may use the scripts provided to deploy an initial Assistant and bind it to your application.
-
-On Windows:
-```pwsh
-.\scripts\createAssistant.ps1
-```
-
-On Linux/Mac:
-```sh
-sh ./scripts/createAssistant.sh
-```
-
-
-Once the bot is deployed, you may send messages to it through the Web Chat, or by running locally.
 
 ### Test in Web Chat
 
@@ -122,43 +103,16 @@ How you run the code depends on the language chosen:
     python app.py
 ```
 
-## Customize the Solution
+You may then open the Bot Emulator and connect it to http://localhost:3978/api/messages to test your bot.
 
-### Enabling SSO
+## Troubleshooting and FAQ
 
-You can enable Single-Sign-On for your bot so that it identifies the user and keeps a token in context, that can later be used to retreive personal information like their name/job title, as well as for Microsoft Graph API calls.
-
-To enable SSO, use the provided scripts for Powershell and Bash. Please note that you should be an `Entra ID Application Developer` and a `Contributor` in the resource group in order to perform the following actions. You can also perform these steps in the portal if you prefer.
-
-On Windows:
-```pwsh
-.\scripts\setupSso.ps1
-```
-
-On Linux/Mac:
-```sh
-sh ./scripts/setupSso.sh
-```
-
-### Enabling Web Chat
-
-Web chat is disabled by default, as you may want to set up authentication before publishing your app. To enable it, use the provided scripts for Powershell and Bash.
-
-
-On Windows:
-```pwsh
-.\scripts\setupWebchat.ps1
-```
-
-On Linux/Mac:
-```sh
-sh ./scripts/setupWebchat.sh
-```
-
-Please note that doing so will make your bot public, unless you implement authentication / SSO.
-
-### Creating custom functions
-
+- **Post-provision hooks fail with "Cannot iterate over null"**:
+    - The post-provision hooks rely on network access to the services created. Make sure to allowlist your own IP so the scripts execute correctly
+- **azd pipeline config fails to push changes**:
+    - This command will push changes to the repository's main branch. Make sure you have the necessary permissions and branch protection is temporarily disabled.
+- **An error of type 'access_denied' occurred during the login process**:
+    - This will happen when your App Registration is missing either the "ID Tokens" configuration, or the MS Graph `openid` permission scope. Make sure both configurations are in place and retry.
 
 ## How to Contribute
 

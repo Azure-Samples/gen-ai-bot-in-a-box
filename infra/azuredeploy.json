@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.29.47.4906",
-      "templateHash": "16705163917672247143"
+      "templateHash": "17163858234319458671"
     }
   },
   "parameters": {
@@ -17,14 +17,22 @@
     },
     "myPrincipalId": {
       "type": "string",
-      "defaultValue": "",
       "metadata": {
         "description": "Principal ID to grant access to the AI services. Leave empty to skip"
       }
     },
+    "myPrincipalType": {
+      "type": "string",
+      "allowedValues": [
+        "User",
+        "ServicePrincipal"
+      ],
+      "metadata": {
+        "description": "Current principal type being used"
+      }
+    },
     "allowedIpAddresses": {
       "type": "string",
-      "defaultValue": "",
       "metadata": {
         "description": "IP addresses to grant access to the AI services. Leave empty to skip"
       }
@@ -740,7 +748,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "deploy_aiServices",
+      "name": "deploy_aiservices",
       "resourceGroup": "[variables('names').resourceGroup]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -768,7 +776,7 @@
             "value": [
               {
                 "id": "[parameters('myPrincipalId')]",
-                "type": "User"
+                "type": "[parameters('myPrincipalType')]"
               },
               {
                 "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_msi'), '2022-09-01').outputs.msiPrincipalID.value]",
@@ -1204,7 +1212,7 @@
             "value": "[variables('names').search]"
           },
           "aiServicesName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices'), '2022-09-01').outputs.aiServicesName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices'), '2022-09-01').outputs.aiServicesName.value]"
           },
           "storageName": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_storage'), '2022-09-01').outputs.storageName.value]"
@@ -1213,14 +1221,14 @@
             "value": [
               {
                 "id": "[parameters('myPrincipalId')]",
-                "type": "User"
+                "type": "[parameters('myPrincipalType')]"
               },
               {
                 "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_msi'), '2022-09-01').outputs.msiPrincipalID.value]",
                 "type": "ServicePrincipal"
               },
               {
-                "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices'), '2022-09-01').outputs.aiServicesPrincipalId.value]",
+                "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices'), '2022-09-01').outputs.aiServicesPrincipalId.value]",
                 "type": "ServicePrincipal"
               }
             ]
@@ -1310,7 +1318,7 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_msi')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_storage')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('names').resourceGroup)]"
@@ -1347,7 +1355,7 @@
             "value": [
               {
                 "id": "[parameters('myPrincipalId')]",
-                "type": "User"
+                "type": "[parameters('myPrincipalType')]"
               },
               {
                 "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_msi'), '2022-09-01').outputs.msiPrincipalID.value]",
@@ -1695,7 +1703,7 @@
             "value": "[format('cog-ai-prj-{0}-{1}', parameters('environmentName'), variables('uniqueSuffix'))]"
           },
           "aiServicesName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices'), '2022-09-01').outputs.aiServicesName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices'), '2022-09-01').outputs.aiServicesName.value]"
           },
           "keyVaultName": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_keyVault'), '2022-09-01').outputs.keyVaultName.value]"
@@ -1954,7 +1962,7 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_keyVault')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_vnet')]",
@@ -1990,7 +1998,7 @@
             "value": [
               {
                 "id": "[parameters('myPrincipalId')]",
-                "type": "User"
+                "type": "[parameters('myPrincipalType')]"
               },
               {
                 "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_msi'), '2022-09-01').outputs.msiPrincipalID.value]",
@@ -2186,7 +2194,7 @@
         "mode": "Incremental",
         "parameters": {
           "aiServicesName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices'), '2022-09-01').outputs.aiServicesName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices'), '2022-09-01').outputs.aiServicesName.value]"
           },
           "modelName": {
             "value": "[variables('modelName')]"
@@ -2255,7 +2263,7 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('names').resourceGroup)]"
       ]
     },
@@ -2313,7 +2321,7 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploygpt'), '2022-09-01').outputs.modelName.value]"
           },
           "aiServicesName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices'), '2022-09-01').outputs.aiServicesName.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices'), '2022-09-01').outputs.aiServicesName.value]"
           }
         },
         "template": {
@@ -2323,7 +2331,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "17217637488458027421"
+              "templateHash": "5396919144740839649"
             }
           },
           "parameters": {
@@ -2383,6 +2391,9 @@
             "privateDnsZoneId": {
               "type": "string"
             }
+          },
+          "variables": {
+            "backendLanguage": "[if(startsWith(parameters('linuxFxVersion'), 'python'), 'python', if(startsWith(parameters('linuxFxVersion'), 'node'), 'node', 'dotnet'))]"
           },
           "resources": [
             {
@@ -2764,7 +2775,7 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_cosmos')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').dnsResourceGroup), 'Microsoft.Resources/deployments', 'deploy_dns')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploygpt')]",
@@ -2906,7 +2917,7 @@
     },
     "AI_SERVICES_ENDPOINT": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiServices'), '2022-09-01').outputs.aiServicesEndpoint.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('names').resourceGroup), 'Microsoft.Resources/deployments', 'deploy_aiservices'), '2022-09-01').outputs.aiServicesEndpoint.value]"
     },
     "FRONTEND_APP_NAME": {
       "type": "string",

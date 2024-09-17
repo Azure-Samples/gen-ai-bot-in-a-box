@@ -7,17 +7,23 @@ $envValues.Split("`n") | ForEach-Object {
     Set-Variable -Name $key -Value $value -Scope Global
 }
 
-# Create an App Registration and retrieve its ID and Client ID.
-$APP = az ad app create --display-name $BACKEND_APP_NAME --web-redirect-uris https://token.botframework.com/.auth/web/redirect | ConvertFrom-Json
-$APP_ID = $APP.id
-$CLIENT_ID = $APP.appId
+if ($envValues["ENABLE_AUTH"] -ne "true") {
+    return
+}
 
-# Create a client secret for the newly created app
-$SECRET = az ad app credential reset --id $APP_ID | ConvertFrom-Json
-$CLIENT_SECRET = $SECRET.password
+# If App Registration was not created, create it
+if ( $CLIENT_ID -eq $null )    
+    {
+        $APP = az ad app create --display-name $BACKEND_APP_NAME --web-redirect-uris https://$FRONTEND_APP_NAME.azurewebsites.net/.auth/login/aad/callback --enable-id-token-issuance | ConvertFrom-Json
+        $APP_ID = $APP.id
+        $CLIENT_ID = $APP.appId
+    }
 
-# Create an SSO configuration for your bot, passing in the App Registration details
-az bot authsetting create --resource-group $AZURE_RESOURCE_GROUP_NAME --name $BOT_NAME --setting-name default --client-id $CLIENT_ID --client-secret $CLIENT_SECRET --parameters TenantId=$AZURE_TENANT_ID --service aadv2 --provider-scope-string User.Read
-
-# Configure the App Service to use the SSO configuration.
-az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $BACKEND_APP_NAME --settings SSO_ENABLED=true SSO_CONFIG_NAME=default
+# Set up authorization for frontend app
+az webapp auth config-version upgrade -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME || true
+az webapp auth update -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME --enabled true \
+    --action RedirectToLoginPage  --redirect-provider azureactivedirectory
+az webapp auth microsoft update -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME \
+    --allowed-token-audiences https://$FRONTEND_APP_NAME.azurewebsites.net/.auth/login/aad/callback \
+    --client-id $CLIENT_ID \
+    --issuer https://sts.windows.net/$AZURE_TENANT_ID/

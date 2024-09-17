@@ -9,7 +9,6 @@ done <<EOF
 $(azd env get-values)
 EOF
 
-
 # Find the secret for the direct line channel
 SECRET=$(az bot directline show --name $BOT_NAME --resource-group $AZURE_RESOURCE_GROUP_NAME --with-secrets --query "properties.properties.sites[0].key" -o tsv)
 
