@@ -52,7 +52,7 @@ Workload resource group:
 
 DNS resource group:
 
-![DNS Resource Group](../media/common/dns-resource-group.png)
+![DNS Resource Group](../common/media/dns-resource-group.png)
 
 ### Quickstart configuration
 
@@ -60,7 +60,7 @@ Use the following steps to further configure the application for the healthcare 
 
 1. **System prompt**: Provide the necessary instructions to shape the behavior of the assistant depending on the use case. System messages can be provided in the App Service's (backend) Environment Variables, as shown below:
 
-    ![System prompt configuration](../media/common/system-message.png)
+    ![System prompt configuration](../common/media/system-message.png)
 
     > Note: look for the App Service instance with a name beginning with `app-be-`
 
@@ -78,7 +78,7 @@ Configure content filters to properly safeguard the application from unintended 
 
 - Navigate to the [Content Filter section of AI Studio](https://ai.azure.com/resource/contentfilters/contentFilter)
 - Adjust each filter category accordingly.
-![Content filters configuration](../media/common/content-filters.png)
+![Content filters configuration](../common/media/content-filters.png)
 > Note: when content filtering is triggered, the bot will refuse to respond. Use this to limit the bot's responses on some categories.
 - Apply changes to the desired model deployments.
 
@@ -92,9 +92,9 @@ Keep in mind that:
 
 After deployment, you may reach the webchat by accessing the front-end application's default domain:
 
-![Front-end app default domain](../media/common/frontend-default-domain.png)
+![Front-end app default domain](../common/media/frontend-default-domain.png)
 
-![Front-end app](../media/common/frontend-webchat.png)
+![Front-end app](../common/media/frontend-webchat.png)
 
 
 You may interact with the assistant by typing into the chat, or by clicking the microphone icon and speaking. Start by specifying the role of the assistant in the conversation.

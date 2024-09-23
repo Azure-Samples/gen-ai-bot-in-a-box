@@ -51,7 +51,7 @@ Workload resource group:
 
 DNS resource group:
 
-![DNS Resource Group](../media/common/dns-resource-group.png)
+![DNS Resource Group](../common/media/dns-resource-group.png)
 
 ### Quickstart configuration
 
@@ -140,7 +140,7 @@ Configure content filters to properly safeguard the application from unintended 
 
 - Navigate to the [Content Filter section of AI Studio](https://ai.azure.com/resource/contentfilters/contentFilter)
 - Adjust each filter category accordingly.
-![Content Filters configuration](../media/common/content-filters.png)
+![Content Filters configuration](../common/media/content-filters.png)
 > Note: when content filtering is triggered, the bot will refuse to respond. Use this to limit the bot's responses on some categories.
 
 ## User Guide
@@ -149,9 +149,9 @@ Configure content filters to properly safeguard the application from unintended 
 
 After deployment, you may reach the webchat by accessing the front-end application's default domain:
 
-![Front-end app default domain](../media/common/frontend-default-domain.png)
+![Front-end app default domain](../common/media/frontend-default-domain.png)
 
-![Front-end app](../media/common/frontend-webchat.png)
+![Front-end app](../common/media/frontend-webchat.png)
 
 You may interact with the assistant by typing into the chat, or by clicking the microphone icon and speaking.
 
