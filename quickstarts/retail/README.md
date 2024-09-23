@@ -123,7 +123,7 @@ Next, import the Cosmos DB data into an AI Search index:
 - Skip Cognitive Skills setup;
 - Select the appropriate fields as retrievable and searchable as shown below.
 
-![Index fields configuration](index-field-configuration.png)
+![Index fields configuration](./media/index-field-configuration.png)
 
 - Leave other configurations as default and create the index
 - Review and test the newly created index.
@@ -159,7 +159,7 @@ You may interact with the assistant by typing into the chat, or by clicking the 
 
 - **Text-based search**: Search for products in the catalog by interacting with the bot
 
-![Text-based search](text-based-search.png)
+![Text-based search](./media/text-based-search.png)
 
 - **Image-based search**: Provide images of items similar or that provide further insight into products you are looking for.
 
