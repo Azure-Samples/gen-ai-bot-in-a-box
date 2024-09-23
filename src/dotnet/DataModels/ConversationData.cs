@@ -57,7 +57,7 @@ namespace Microsoft.BotBuilderSamples
                 turn.Role == "user" ? new UserChatMessage(new ChatMessageContentPart[]{
                     turn.ImageType == null ? 
                         ChatMessageContentPart.CreateTextMessageContentPart(turn.Message) :
-                        ChatMessageContentPart.CreateImageMessageContentPart(BinaryData.FromString(turn.ImageData), turn.ImageType)
+                        ChatMessageContentPart.CreateImageMessageContentPart(BinaryData.FromBytes(Convert.FromBase64String(turn.ImageData)), turn.ImageType)
                 }) :
                 turn.Role == "system" ? new SystemChatMessage(turn.Message) :
                 new ToolChatMessage(turn.ToolCallId, turn.Message)).ToList();

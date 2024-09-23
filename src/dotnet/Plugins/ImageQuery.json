@@ -1,0 +1,23 @@
+{
+  "type": "function",
+  "function": {
+    "name": "image_query",
+    "description": "Get information about an image that was uploaded. Valid only for png, jpg/jpeg, gif and webp files.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The question about the image"
+        },
+        "image_name": {
+          "type": "string",
+          "description": "The name of the image file, not including the directory"
+        }
+      },
+      "required": [
+        "query", "image_name"
+      ]
+    }
+  }
+}

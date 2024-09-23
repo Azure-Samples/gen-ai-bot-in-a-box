@@ -13,7 +13,7 @@ This solution quickstart provides a boilerplate solution to accelerate the devel
 
 Below is a representation of the solution architecture:
 
-![Solution architecture](architecture.png)
+![Solution architecture](./media/architecture.png)
 
 ## Deployment Guide
 
@@ -158,6 +158,9 @@ You may interact with the assistant by typing into the chat, or by clicking the 
 ### Key functionalities
 
 - **Text-based search**: Search for products in the catalog by interacting with the bot
+
+![Text-based search](text-based-search.png)
+
 - **Image-based search**: Provide images of items similar or that provide further insight into products you are looking for.
 
 ## Troubleshooting

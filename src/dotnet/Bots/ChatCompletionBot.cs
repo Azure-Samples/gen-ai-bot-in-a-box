@@ -26,12 +26,16 @@ namespace GenAIBot.Bots
             _chatDataSource = chatDataSource;
             _httpClient = httpClient;
 
-            _chatCompletionOptions = new() { };
-            foreach (var plugin in new List<string>() {"./Plugins/WikipediaQuery.json", "./Plugins/WikipediaGetArticle.json"}) {
-                var dict = JsonSerializer.Deserialize<JsonNode>(File.ReadAllText(plugin))["function"];
-                _chatCompletionOptions.Tools.Add(ChatTool.CreateFunctionTool((string)dict["name"], (string)dict["description"], BinaryData.FromString(dict["parameters"].ToJsonString())));
+            _chatCompletionOptions = new();
+            if (_chatDataSource == null)
+            {
+                foreach (var plugin in new List<string>() { "./Plugins/WikipediaQuery.json", "./Plugins/WikipediaGetArticle.json" })
+                {
+                    var dict = JsonSerializer.Deserialize<JsonNode>(File.ReadAllText(plugin))["function"];
+                    _chatCompletionOptions.Tools.Add(ChatTool.CreateFunctionTool((string)dict["name"], (string)dict["description"], BinaryData.FromString(dict["parameters"].ToJsonString())));
+                }
             }
-            if (_chatDataSource != null)
+            else
             {
                 _chatCompletionOptions.AddDataSource(_chatDataSource);
             }
@@ -80,8 +84,16 @@ namespace GenAIBot.Bots
             conversationData.AddTurn("user", turnContext.Activity.Text);
 
             var messages = conversationData.toMessages();
-            var completion = _chatClient.CompleteChatStreamingAsync(messages: messages, options: _chatCompletionOptions);
+            // Do not use OYD when images are provided
+            var completionOptions = conversationData.History.Exists(x => x.ImageData != null) ? 
+                new() : _chatCompletionOptions;
+            var completion = _chatClient.CompleteChatStreamingAsync(messages: messages, options: completionOptions);
             await ProcessRunStreaming(completion, conversationData, turnContext, cancellationToken);
+            // If OYD is enabled, remove image data from history after using it
+            if (_chatCompletionOptions.GetDataSources().Count > 0)
+            {
+                conversationData.History.RemoveAll(x => x.ImageData != null);
+            }
 
             return true;
         }
