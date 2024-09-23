@@ -11,6 +11,7 @@ namespace GenAIBot.Bots
     {
         private readonly ChatClient _chatClient;
         private readonly string _instructions;
+        private readonly string _welcomeMessage;
         private readonly AzureSearchChatDataSource _chatDataSource;
         private readonly HttpClient _httpClient;
         private readonly bool _streaming;
@@ -21,6 +22,7 @@ namespace GenAIBot.Bots
         {
             _chatClient = aoaiClient.GetChatClient(config["AZURE_OPENAI_DEPLOYMENT_NAME"]);
             _instructions = config["LLM_INSTRUCTIONS"];
+            _welcomeMessage = config.GetValue("LLM_WELCOME_MESSAGE", "Hello and welcome to the Chat Completions Bot Dotnet!");
             _chatDataSource = chatDataSource;
             _httpClient = httpClient;
 
@@ -41,7 +43,7 @@ namespace GenAIBot.Bots
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text("Hello and welcome to the Chat Completion Bot Dotnet!"), cancellationToken);
+                    await turnContext.SendActivityAsync(MessageFactory.Text(_welcomeMessage), cancellationToken);
                 }
             }
         }
@@ -128,7 +130,7 @@ namespace GenAIBot.Bots
                     if (messageContentUpdate.Text != null)
                     {
                         currentMessage += messageContentUpdate.Text;
-                        await SendInterimMessage(turnContext, currentMessage, ++streamSequence, activityId, "typing");
+                        SendInterimMessage(turnContext, currentMessage, ++streamSequence, activityId, "typing");
                     }
                     else if (messageContentUpdate.ImageUri != null)
                     {

@@ -1,5 +1,5 @@
 
-## Operational Guide
+## Quickstart Operational Guide
 
 ### Project structure
 
@@ -32,8 +32,8 @@ Bot backend environment variables:
 | --- | --- | --- |
 | AZURE_COSMOSDB_CONTAINER_ID | Cosmos DB container that will store conversation data | "Conversations" |
 | AZURE_COSMOSDB_DATABASE_ID | Cosmos DB database | "GenAIBot" |
-| AZURE_COSMOSDB_ENDPOINT | Cosmos DB endpoint | "https://cosmos-macarbot-i3m.documents.azure.com:443/" |
-| AZURE_OPENAI_API_ENDPOINT | Azure Open AI endpoint | "https://cog-macarbot-i3m.cognitiveservices.azure.com/" |
+| AZURE_COSMOSDB_ENDPOINT | Cosmos DB endpoint | "https://cosmos-ENVNAME-SUFFIX.documents.azure.com:443/" |
+| AZURE_OPENAI_API_ENDPOINT | Azure Open AI endpoint | "https://cog-ENVNAME-SUFFIX.cognitiveservices.azure.com/" |
 | AZURE_OPENAI_API_VERSION | Azure Open AI API version | "2024-05-01-preview" |
 | AZURE_OPENAI_ASSISTANT_ID | Azure Open AI Assistant ID | Automatically generated |
 | AZURE_OPENAI_DEPLOYMENT_NAME | Azure Open AI model deployment name | "gpt-4o" |

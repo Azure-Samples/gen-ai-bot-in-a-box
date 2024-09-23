@@ -320,6 +320,7 @@ module m_cosmos 'modules/cosmos.bicep' = {
     publicNetworkAccess: publicNetworkAccess
     privateEndpointSubnetId: privateEndpointSubnetId
     privateDnsZoneId: dnsZoneIds[5]
+    allowedIpAddresses: allowedIpAddressesArray
     grantAccessTo: [
       {
         id: myPrincipalId
@@ -327,6 +328,10 @@ module m_cosmos 'modules/cosmos.bicep' = {
       }
       {
         id: m_msi.outputs.msiPrincipalID
+        type: 'ServicePrincipal'
+      }
+      {
+        id: deploySearch ? m_search.outputs.searchPrincipalId : ''
         type: 'ServicePrincipal'
       }
     ]

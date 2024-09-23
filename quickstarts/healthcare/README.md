@@ -12,7 +12,7 @@ This solution quickstart provides a boilerplate solution to facilitate the commu
 
 Below is a representation of the solution architecture and data interactions for both scenarios:
 
-![alt text](image-5.png)
+![Solution architecture](./media/architecture.png)
 
 
 ## Deployment Guide
@@ -47,13 +47,12 @@ The following resources will be deployed:
 
 Workload resource group:
 
-![Workload Resource Group](image-6.png)
+![Workload Resource Group](./media/workload-resource-group.png)
+> Note: private endpoints and network interfaces are hidden for clarity.
 
 DNS resource group:
 
-![DNS Resource Group](image-7.png)
-
-Both applications will be automatically configured with the required environment variables. Refer to the Operational Guide for information on these variables.
+![DNS Resource Group](../media/common/dns-resource-group.png)
 
 ### Quickstart configuration
 
@@ -61,9 +60,9 @@ Use the following steps to further configure the application for the healthcare 
 
 1. **System prompt**: Provide the necessary instructions to shape the behavior of the assistant depending on the use case. System messages can be provided in the App Service's (backend) Environment Variables, as shown below:
 
-    ![alt text](image.png)
+    ![System prompt configuration](../media/common/system-message.png)
 
-    Use the examples below and make adjustments as needed.
+    > Note: look for the App Service instance with a name beginning with `app-be-`
 
     Live translation:
 
@@ -79,7 +78,7 @@ Configure content filters to properly safeguard the application from unintended 
 
 - Navigate to the [Content Filter section of AI Studio](https://ai.azure.com/resource/contentfilters/contentFilter)
 - Adjust each filter category accordingly.
-![alt text](image-2.png)
+![Content filters configuration](../media/common/content-filters.png)
 > Note: when content filtering is triggered, the bot will refuse to respond. Use this to limit the bot's responses on some categories.
 - Apply changes to the desired model deployments.
 
@@ -93,9 +92,9 @@ Keep in mind that:
 
 After deployment, you may reach the webchat by accessing the front-end application's default domain:
 
-![Front-end app default domain](image-1.png)
+![Front-end app default domain](../media/common/frontend-default-domain.png)
 
-![Front-end app](image-8.png)
+![Front-end app](../media/common/frontend-webchat.png)
 
 
 You may interact with the assistant by typing into the chat, or by clicking the microphone icon and speaking. Start by specifying the role of the assistant in the conversation.
@@ -106,19 +105,17 @@ When using audio input, select the language before speaking. The assistant will 
 
 - **General health-related information**: Knowledge about health conditions, medication, symptoms and research.
 
-![General knowledge feature](image-11.png)
+![General knowledge feature](./media/general-knowledge.png)
 
-- **Voice**: Chat using voice, with multiple supported input and output languages. Translate between different languages
-
-
+- **Voice**: Chat using voice, with multiple supported input and output languages. Translate between different languages by requesting the assistant to translate between two languages.
 
 - **Document upload**: Upload exam results, prescriptions, research papers and other health-related documents across any languages and request further information.
 
-![Document upload feature](image-9.png)
+![Document upload feature](./media/file-upload.png)
 
 - **Image Analysis**: Upload images of unknown conditions or imaging tests for further information and identification of the correct healthcare specialty
 
-![Image analysis feature](image-10.png)
+![Image analysis feature](./media/image-upload.png)
 
 **Out of scope**
 

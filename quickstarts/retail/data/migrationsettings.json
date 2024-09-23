@@ -1,0 +1,18 @@
+{
+    "Source": "",
+    "Sink": "",
+    "SourceSettings": {
+          "FilePath": "FULL_PATH_TO_CSV_FILE"
+    },
+    "SinkSettings": {
+      "ConnectionString": "ResourceId=/subscriptions/SUBSCRIPTION_ID/resourceGroups/RG_NAME/providers/Microsoft.DocumentDB/databaseAccounts/COSMOS_DB_ACCOUNT;",
+      "Database": "GenAIBot",
+      "Container": "Products",
+      "PartitionKeyPath": "/id",
+      "RecreateContainer": true,
+      "IncludeMetadataFields": false
+    },
+    "Operations": [
+    ]
+  }
+  
