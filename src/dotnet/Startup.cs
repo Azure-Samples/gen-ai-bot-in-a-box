@@ -103,7 +103,8 @@ namespace GenAIBot
                 {
                     Endpoint = new Uri(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")),
                     IndexName = configuration.GetValue<string>("AZURE_SEARCH_INDEX"),
-                    Authentication = DataSourceAuthentication.FromSystemManagedIdentity()
+                    Authentication = DataSourceAuthentication.FromSystemManagedIdentity(),
+                    RoleInformation = configuration.GetValue<string>("LLM_INSTRUCTIONS")
                 });
             }
 

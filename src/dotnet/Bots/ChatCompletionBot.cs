@@ -27,17 +27,19 @@ namespace GenAIBot.Bots
             _httpClient = httpClient;
 
             _chatCompletionOptions = new();
-            if (_chatDataSource == null)
+
+            // Use either OYD or function calling, not both. Enabling search will disable function calling.
+            if (_chatDataSource != null)
+            {
+                _chatCompletionOptions.AddDataSource(_chatDataSource);
+            }
+            else
             {
                 foreach (var plugin in new List<string>() { "./Plugins/WikipediaQuery.json", "./Plugins/WikipediaGetArticle.json" })
                 {
                     var dict = JsonSerializer.Deserialize<JsonNode>(File.ReadAllText(plugin))["function"];
                     _chatCompletionOptions.Tools.Add(ChatTool.CreateFunctionTool((string)dict["name"], (string)dict["description"], BinaryData.FromString(dict["parameters"].ToJsonString())));
                 }
-            }
-            else
-            {
-                _chatCompletionOptions.AddDataSource(_chatDataSource);
             }
         }
 
@@ -85,7 +87,7 @@ namespace GenAIBot.Bots
 
             var messages = conversationData.toMessages();
             // Do not use OYD when images are provided
-            var completionOptions = conversationData.History.Exists(x => x.ImageData != null) ? 
+            var completionOptions = conversationData.History.Exists(x => x.ImageData != null) ?
                 new() : _chatCompletionOptions;
             var completion = _chatClient.CompleteChatStreamingAsync(messages: messages, options: completionOptions);
             await ProcessRunStreaming(completion, conversationData, turnContext, cancellationToken);
