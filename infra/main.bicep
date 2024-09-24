@@ -22,9 +22,9 @@ param tags object = {}
 @description('Allow or deny public network access to the AI services (recommended: Disabled)')
 @allowed(['Enabled', 'Disabled'])
 param publicNetworkAccess string
-@description('Authentication type to use with Storage Account (recommended: identity)')
+@description('Authentication type to use (recommended: identity)')
 @allowed(['identity', 'accessKey'])
-param systemDatastoresAuthMode string
+param authMode string
 @description('Address prefixes for the spoke vNet')
 param vnetAddressPrefixes array = ['10.0.0.0/16']
 @description('Address prefix for the private endpoint subnet')
@@ -189,7 +189,8 @@ module m_aiservices 'modules/aistudio/aiservices.bicep' = {
     privateEndpointSubnetId: privateEndpointSubnetId
     openAIPrivateDnsZoneId: dnsZoneIds[0]
     cognitiveServicesPrivateDnsZoneId: dnsZoneIds[1]
-    grantAccessTo: [
+    authMode: authMode
+    grantAccessTo: authMode == 'identity' ? [
       {
         id: myPrincipalId
         type: myPrincipalType
@@ -202,7 +203,7 @@ module m_aiservices 'modules/aistudio/aiservices.bicep' = {
         id: deploySearch ? m_search.outputs.searchPrincipalId : ''
         type: 'ServicePrincipal'
       }
-    ]
+    ] : []
     allowedIpAddresses: allowedIpAddressesArray
     tags: tags
   }
@@ -229,7 +230,7 @@ module m_sharedPrivateLinks 'modules/aistudio/sharedPrivateLinks.bicep' = if (de
     searchName: names.search
     aiServicesName: m_aiservices.outputs.aiServicesName
     storageName: m_storage.outputs.storageName
-    grantAccessTo: [
+    grantAccessTo: authMode == 'identity' ? [
       {
         id: myPrincipalId
         type: myPrincipalType
@@ -242,7 +243,7 @@ module m_sharedPrivateLinks 'modules/aistudio/sharedPrivateLinks.bicep' = if (de
         id: m_aiservices.outputs.aiServicesPrincipalId
         type: 'ServicePrincipal'
       }
-    ]
+    ] : []
   }
 }
 
@@ -254,10 +255,10 @@ module m_storage 'modules/aistudio/storage.bicep' = {
     location: location
     storageName: names.storage
     publicNetworkAccess: publicNetworkAccess
-    systemDatastoresAuthMode: systemDatastoresAuthMode
+    authMode: authMode
     privateEndpointSubnetId: privateEndpointSubnetId
     privateDnsZoneId: dnsZoneIds[2]
-    grantAccessTo: [
+    grantAccessTo: authMode == 'identity' ? [
       {
         id: myPrincipalId
         type: myPrincipalType
@@ -270,7 +271,7 @@ module m_storage 'modules/aistudio/storage.bicep' = {
         id: deploySearch ? m_search.outputs.searchPrincipalId : ''
         type: 'ServicePrincipal'
       }
-    ]
+    ] : []
     tags: tags
   }
 }
@@ -301,7 +302,7 @@ module m_aihub 'modules/aistudio/aihub.bicep' = if (deployAIHub) {
     storageName: names.storage
     searchName: deploySearch ? m_search.outputs.searchName : ''
     publicNetworkAccess: publicNetworkAccess
-    systemDatastoresAuthMode: systemDatastoresAuthMode
+    systemDatastoresAuthMode: authMode
     privateEndpointSubnetId: privateEndpointSubnetId
     apiPrivateDnsZoneId: dnsZoneIds[6]
     notebookPrivateDnsZoneId: dnsZoneIds[7]
@@ -321,7 +322,8 @@ module m_cosmos 'modules/cosmos.bicep' = {
     privateEndpointSubnetId: privateEndpointSubnetId
     privateDnsZoneId: dnsZoneIds[5]
     allowedIpAddresses: allowedIpAddressesArray
-    grantAccessTo: [
+    authMode: authMode
+    grantAccessTo: authMode == 'identity' ? [
       {
         id: myPrincipalId
         type: myPrincipalType
@@ -334,7 +336,7 @@ module m_cosmos 'modules/cosmos.bicep' = {
         id: deploySearch ? m_search.outputs.searchPrincipalId : ''
         type: 'ServicePrincipal'
       }
-    ]
+    ] : []
     tags: tags
   }
 }
@@ -364,6 +366,7 @@ module m_app 'modules/appservice.bicep' = {
     publicNetworkAccess: publicNetworkAccess
     privateEndpointSubnetId: privateEndpointSubnetId
     privateDnsZoneId: dnsZoneIds[8]
+    authMode: authMode
     appSubnetId: publicNetworkAccess == 'Disabled' ? m_network.outputs.appSubnetId : ''
     msiID: m_msi.outputs.msiID
     msiClientID: m_msi.outputs.msiClientID
@@ -401,3 +404,4 @@ output BOT_NAME string = m_bot.outputs.name
 output STACK string = split(stack, '|')[0]
 output IMPLEMENTATION string = implementation
 output ENABLE_AUTH bool = enableAuthentication
+output AUTH_MODE string = authMode

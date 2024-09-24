@@ -42,6 +42,9 @@ class ChatCompletionBot(StateManagementBot):
                             "index_name": os.getenv("AZURE_SEARCH_INDEX"),
                             "authentication": {
                                 "type": "system_assigned_managed_identity",
+                            } if not os.getenv("AZURE_SEARCH_API_KEY") else {
+                                "type": "api_key",
+                                "value": os.getenv("AZURE_SEARCH_API_KEY")
                             }
                         }
                     }

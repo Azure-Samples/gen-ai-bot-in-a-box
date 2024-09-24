@@ -3,6 +3,7 @@
 
 using System.IO;
 using System.Text.Json.Nodes;
+using Microsoft.Azure.Cosmos.Linq;
 using Plugins;
 
 namespace GenAIBot.Bots
@@ -92,7 +93,8 @@ namespace GenAIBot.Bots
             var completion = _chatClient.CompleteChatStreamingAsync(messages: messages, options: completionOptions);
             await ProcessRunStreaming(completion, conversationData, turnContext, cancellationToken);
             // If OYD is enabled, remove image data from history after using it
-            if (_chatCompletionOptions.GetDataSources().Count > 0)
+            var dataSources = completionOptions.GetDataSources();
+            if (!dataSources.IsNull())
             {
                 conversationData.History.RemoveAll(x => x.ImageData != null);
             }

@@ -6,6 +6,7 @@ param privateEndpointSubnetId string
 param privateDnsZoneId string
 param grantAccessTo array = []
 param allowedIpAddresses array = []
+param authMode string
 
 resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
   name: cosmosName
@@ -28,7 +29,7 @@ resource cosmos 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
         ipAddressOrRange: ipAddress
       }
     ]
-    disableLocalAuth: true
+    disableLocalAuth: authMode == 'accessKey' ? false : true
   }
 
   resource db 'sqlDatabases' = {

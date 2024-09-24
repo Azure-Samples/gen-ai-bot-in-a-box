@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using Azure;
 using Azure.AI.OpenAI;
 using Azure.AI.OpenAI.Chat;
 using Azure.Identity;
@@ -56,10 +57,22 @@ namespace GenAIBot
                 new DefaultAzureCredentialOptions { ManagedIdentityClientId = userAssignedClientId }
             );
 
-            AzureOpenAIClient aoaiClient = new AzureOpenAIClient(
-                endpoint: new Uri(configuration.GetValue<string>("AZURE_OPENAI_API_ENDPOINT")),
-                credential: credential
-            );
+            AzureOpenAIClient aoaiClient;
+            var aoaiApiKey = configuration.GetValue<string>("AZURE_OPENAI_API_KEY");
+            if (string.IsNullOrEmpty(aoaiApiKey))
+            {
+                aoaiClient = new AzureOpenAIClient(
+                    endpoint: new Uri(configuration.GetValue<string>("AZURE_OPENAI_API_ENDPOINT")),
+                    credential: credential
+                );
+            }
+            else
+            {
+                aoaiClient = new AzureOpenAIClient(
+                    endpoint: new Uri(configuration.GetValue<string>("AZURE_OPENAI_API_ENDPOINT")),
+                    credential: new ApiKeyCredential(aoaiApiKey)
+                );
+            }
             services.AddSingleton(aoaiClient);
 
             Phi phiClient = new Phi(
@@ -72,13 +85,27 @@ namespace GenAIBot
             IStorage storage;
             if (configuration.GetValue<string>("AZURE_COSMOSDB_ENDPOINT") != null)
             {
-                var cosmosDbStorageOptions = new CosmosDbPartitionedStorageOptions()
+                CosmosDbPartitionedStorageOptions cosmosDbStorageOptions;
+                if (string.IsNullOrEmpty(configuration.GetValue<string>("AZURE_COSMOSDB_AUTH_KEY")))
                 {
-                    CosmosDbEndpoint = configuration.GetValue<string>("AZURE_COSMOSDB_ENDPOINT"),
-                    TokenCredential = credential,
-                    DatabaseId = configuration.GetValue<string>("AZURE_COSMOSDB_DATABASE_ID"),
-                    ContainerId = configuration.GetValue<string>("AZURE_COSMOSDB_CONTAINER_ID")
-                };
+                    cosmosDbStorageOptions = new CosmosDbPartitionedStorageOptions
+                    {
+                        CosmosDbEndpoint = configuration.GetValue<string>("AZURE_COSMOSDB_ENDPOINT"),
+                        TokenCredential = credential,
+                        DatabaseId = configuration.GetValue<string>("AZURE_COSMOSDB_DATABASE_ID"),
+                        ContainerId = configuration.GetValue<string>("AZURE_COSMOSDB_CONTAINER_ID")
+                    };
+                }
+                else
+                {
+                    cosmosDbStorageOptions = new CosmosDbPartitionedStorageOptions
+                    {
+                        CosmosDbEndpoint = configuration.GetValue<string>("AZURE_COSMOSDB_ENDPOINT"),
+                        AuthKey = configuration.GetValue<string>("AZURE_COSMOSDB_AUTH_KEY"),
+                        DatabaseId = configuration.GetValue<string>("AZURE_COSMOSDB_DATABASE_ID"),
+                        ContainerId = configuration.GetValue<string>("AZURE_COSMOSDB_CONTAINER_ID")
+                    };
+                }
                 storage = new CosmosDbPartitionedStorage(cosmosDbStorageOptions);
             }
             else
@@ -97,13 +124,14 @@ namespace GenAIBot
             // Add the Login dialog
             services.AddSingleton<LoginDialog>();
 
-            if (configuration.GetValue("AZURE_SEARCH_API_ENDPOINT", "") != "")
+            if (string.IsNullOrEmpty(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")))
             {
+                var searchApiKey = configuration.GetValue<string>("AZURE_SEARCH_API_KEY");
                 services.AddSingleton(new AzureSearchChatDataSource()
                 {
                     Endpoint = new Uri(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")),
                     IndexName = configuration.GetValue<string>("AZURE_SEARCH_INDEX"),
-                    Authentication = DataSourceAuthentication.FromSystemManagedIdentity(),
+                    Authentication = string.IsNullOrEmpty(searchApiKey) ? DataSourceAuthentication.FromSystemManagedIdentity() : DataSourceAuthentication.FromApiKey(searchApiKey),
                     RoleInformation = configuration.GetValue<string>("LLM_INSTRUCTIONS")
                 });
             }

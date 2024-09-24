@@ -21,7 +21,7 @@ from botbuilder.core import (
 )
 from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.integration.aiohttp import CloudAdapter, ConfigurationBotFrameworkAuthentication
-from botbuilder.schema import Activity, ActivityTypes
+from botbuilder.schema import Activity
 
 from openai import AzureOpenAI
 from services import Phi
@@ -64,6 +64,7 @@ credential = DefaultAzureCredential(managed_identity_client_id=os.getenv("Micros
 aoai_client = AzureOpenAI(
     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
     azure_endpoint=os.getenv("AZURE_OPENAI_API_ENDPOINT"),
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
     azure_ad_token_provider=get_bearer_token_provider(
         credential, 
         "https://cognitiveservices.azure.com/.default"
@@ -72,14 +73,15 @@ aoai_client = AzureOpenAI(
 
 # Conversation history storage
 storage = None
-if os.getenv("COSMOSDB_ENDPOINT"):
+if os.getenv("AZURE_COSMOSDB_ENDPOINT"):
     storage = CosmosDbPartitionedStorage(
         CosmosDbPartitionedConfig(
-            database_id=os.getenv("COSMOSDB_DATABASE_ID"),
-            container_id=os.getenv("COSMOSDB_CONTAINER_ID"),
+            database_id=os.getenv("AZURE_COSMOSDB_DATABASE_ID"),
+            container_id=os.getenv("AZURE_COSMOSDB_CONTAINER_ID"),
+            auth_key=os.getenv("AZURE_COSMOSDB_AUTH_KEY"),
         )
     )
-    storage.client = CosmosClient(os.getenv("COSMOSDB_ENDPOINT"), credential)
+    storage.client = CosmosClient(os.getenv("AZURE_COSMOSDB_ENDPOINT"), credential)
 else:
     storage = MemoryStorage()
 

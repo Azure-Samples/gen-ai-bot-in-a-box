@@ -70,6 +70,7 @@ const aoaiClient = new AzureOpenAI({
     baseURL: process.env.AZURE_OPENAI_API_ENDPOINT + '/openai',
     azureADTokenProvider: () => credential.getToken('https://cognitiveservices.azure.com/.default').then(result => result.token),
     apiVersion: process.env.AZURE_OPENAI_API_VERSION,
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
 });
 
 // Conversation history storage
@@ -83,6 +84,7 @@ if (process.env.AZURE_COSMOSDB_ENDPOINT) {
         },
         databaseId: process.env.AZURE_COSMOSDB_DATABASE_ID,
         containerId: process.env.AZURE_COSMOSDB_CONTAINER_ID,
+        authKey: process.env.AZURE_COSMOSDB_AUTH_KEY,
     });
 } else {
     storage = new MemoryStorage();

@@ -2,7 +2,7 @@ param location string
 param storageName string
 param tags object = {}
 param publicNetworkAccess string
-param systemDatastoresAuthMode string
+param authMode string
 param privateEndpointSubnetId string
 param privateDnsZoneId string
 param grantAccessTo array = []
@@ -16,8 +16,8 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
   kind: 'StorageV2'
   properties: {
-    isLocalUserEnabled: systemDatastoresAuthMode == 'accessKey'
-    allowSharedKeyAccess: systemDatastoresAuthMode == 'accessKey'
+    isLocalUserEnabled: authMode == 'accessKey'
+    allowSharedKeyAccess: authMode == 'accessKey'
     accessTier: 'Hot'
     encryption: {
       keySource: 'Microsoft.Storage'
