@@ -3,6 +3,7 @@
 
 using System.IO;
 using System.Text.Json.Nodes;
+using Microsoft.Azure.Cosmos.Linq;
 using Plugins;
 
 namespace GenAIBot.Bots
@@ -11,6 +12,7 @@ namespace GenAIBot.Bots
     {
         private readonly ChatClient _chatClient;
         private readonly string _instructions;
+        private readonly string _welcomeMessage;
         private readonly AzureSearchChatDataSource _chatDataSource;
         private readonly HttpClient _httpClient;
         private readonly bool _streaming;
@@ -21,17 +23,24 @@ namespace GenAIBot.Bots
         {
             _chatClient = aoaiClient.GetChatClient(config["AZURE_OPENAI_DEPLOYMENT_NAME"]);
             _instructions = config["LLM_INSTRUCTIONS"];
+            _welcomeMessage = config.GetValue("LLM_WELCOME_MESSAGE", "Hello and welcome to the Chat Completions Bot Dotnet!");
             _chatDataSource = chatDataSource;
             _httpClient = httpClient;
 
-            _chatCompletionOptions = new() { };
-            foreach (var plugin in new List<string>() {"./Plugins/WikipediaQuery.json", "./Plugins/WikipediaGetArticle.json"}) {
-                var dict = JsonSerializer.Deserialize<JsonNode>(File.ReadAllText(plugin))["function"];
-                _chatCompletionOptions.Tools.Add(ChatTool.CreateFunctionTool((string)dict["name"], (string)dict["description"], BinaryData.FromString(dict["parameters"].ToJsonString())));
-            }
+            _chatCompletionOptions = new();
+
+            // Use either OYD or function calling, not both. Enabling search will disable function calling.
             if (_chatDataSource != null)
             {
                 _chatCompletionOptions.AddDataSource(_chatDataSource);
+            }
+            else
+            {
+                foreach (var plugin in new List<string>() { "./Plugins/WikipediaQuery.json", "./Plugins/WikipediaGetArticle.json" })
+                {
+                    var dict = JsonSerializer.Deserialize<JsonNode>(File.ReadAllText(plugin))["function"];
+                    _chatCompletionOptions.Tools.Add(ChatTool.CreateFunctionTool((string)dict["name"], (string)dict["description"], BinaryData.FromString(dict["parameters"].ToJsonString())));
+                }
             }
         }
 
@@ -41,7 +50,7 @@ namespace GenAIBot.Bots
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text("Hello and welcome to the Chat Completion Bot Dotnet!"), cancellationToken);
+                    await turnContext.SendActivityAsync(MessageFactory.Text(_welcomeMessage), cancellationToken);
                 }
             }
         }
@@ -78,8 +87,17 @@ namespace GenAIBot.Bots
             conversationData.AddTurn("user", turnContext.Activity.Text);
 
             var messages = conversationData.toMessages();
-            var completion = _chatClient.CompleteChatStreamingAsync(messages: messages, options: _chatCompletionOptions);
+            // Do not use OYD when images are provided
+            var completionOptions = conversationData.History.Exists(x => x.ImageData != null) ?
+                new() : _chatCompletionOptions;
+            var completion = _chatClient.CompleteChatStreamingAsync(messages: messages, options: completionOptions);
             await ProcessRunStreaming(completion, conversationData, turnContext, cancellationToken);
+            // If OYD is enabled, remove image data from history after using it
+            var dataSources = completionOptions.GetDataSources();
+            if (!dataSources.IsNull())
+            {
+                conversationData.History.RemoveAll(x => x.ImageData != null);
+            }
 
             return true;
         }
@@ -128,7 +146,7 @@ namespace GenAIBot.Bots
                     if (messageContentUpdate.Text != null)
                     {
                         currentMessage += messageContentUpdate.Text;
-                        await SendInterimMessage(turnContext, currentMessage, ++streamSequence, activityId, "typing");
+                        SendInterimMessage(turnContext, currentMessage, ++streamSequence, activityId, "typing");
                     }
                     else if (messageContentUpdate.ImageUri != null)
                     {

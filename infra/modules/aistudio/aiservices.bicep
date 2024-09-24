@@ -7,6 +7,7 @@ param openAIPrivateDnsZoneId string
 param cognitiveServicesPrivateDnsZoneId string
 param grantAccessTo array
 param allowedIpAddresses array = []
+param authMode string
 
 resource aiServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   name: aiServicesName
@@ -19,7 +20,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   }
   kind: 'AIServices'
   properties: {
-    disableLocalAuth: true
+    disableLocalAuth: authMode == 'accessKey' ? false : true
     customSubDomainName: aiServicesName
     publicNetworkAccess: !empty(allowedIpAddresses) ? 'Enabled' : publicNetworkAccess
     networkAcls: {

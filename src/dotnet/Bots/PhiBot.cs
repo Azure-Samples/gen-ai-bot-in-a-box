@@ -14,11 +14,13 @@ namespace GenAIBot.Bots
     {
         private readonly Phi _phiClient;
         private readonly string _instructions;
+        private readonly string _welcomeMessage;
         public PhiBot(IConfiguration config, ConversationState conversationState, UserState userState, Phi phiClient, T dialog)
             : base(config, conversationState, userState, dialog)
         {
             _phiClient = phiClient;
             _instructions = config["LLM_INSTRUCTIONS"];
+            _welcomeMessage = config.GetValue("LLM_WELCOME_MESSAGE", "Hello and welcome to the Phi Bot Dotnet!");
         }
 
         // Modify onMembersAdded as needed
@@ -28,7 +30,7 @@ namespace GenAIBot.Bots
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text("Hello and welcome to the Phi Bot Dotnet!"), cancellationToken);
+                    await turnContext.SendActivityAsync(MessageFactory.Text(_welcomeMessage), cancellationToken);
                 }
             }
         }

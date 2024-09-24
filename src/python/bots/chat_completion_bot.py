@@ -17,11 +17,12 @@ class ChatCompletionBot(StateManagementBot):
     def __init__(self, conversation_state: ConversationState, user_state: UserState, aoai_client: AzureOpenAI, dialog: Dialog):
         super().__init__(conversation_state, user_state, dialog)
         self._aoai_client = aoai_client
+        self.welcome_message = os.getenv("LLM_WELCOME_MESSAGE", "Hello and welcome to the Chat Completion Bot Python!")
 
     async def on_members_added_activity(self, members_added: list[ChannelAccount], turn_context: TurnContext):
         for member in members_added:
             if member.id != turn_context.activity.recipient.id:
-                await turn_context.send_activity("Hello and welcome to the Chat Completion Bot Python!")
+                await turn_context.send_activity(self.welcome_message)
 
     async def on_message_activity(self, turn_context: TurnContext):
         # Load conversation state
@@ -41,6 +42,9 @@ class ChatCompletionBot(StateManagementBot):
                             "index_name": os.getenv("AZURE_SEARCH_INDEX"),
                             "authentication": {
                                 "type": "system_assigned_managed_identity",
+                            } if not os.getenv("AZURE_SEARCH_API_KEY") else {
+                                "type": "api_key",
+                                "value": os.getenv("AZURE_SEARCH_API_KEY")
                             }
                         }
                     }

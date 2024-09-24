@@ -9,13 +9,14 @@ class PhiBot extends StateManagementBot {
     constructor(conversationState, userState, dialog, phiClient) {
         super(conversationState, userState, dialog);
         this.phiClient = phiClient;
+        this.welcomeMessage = process.env.LLM_WELCOME_MESSAGE || "Hello and welcome to the Chat Completions Bot NodeJS!";
 
         // Modify onMembersAdded as needed
         this.onMembersAdded(async (context, next) => {
             const membersAdded = context.activity.membersAdded;
             for (let member of membersAdded) {
                 if (member.id !== context.activity.recipient.id) {
-                    await context.sendActivity("Hello and welcome to the Phi Bot NodeJS!");
+                    await context.sendActivity(this.welcomeMessage);
                 }
             }
             await next();

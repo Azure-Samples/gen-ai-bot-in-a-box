@@ -14,6 +14,7 @@ param searchName string
 param aiServicesName string
 param cosmosName string
 
+param authMode string
 param publicNetworkAccess string
 param privateEndpointSubnetId string
 param appSubnetId string
@@ -150,6 +151,10 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
           value: 'true'
         }
         {
+          name: 'AZURE_OPENAI_API_KEY'
+          value: authMode == 'accessKey' ? aiServices.listKeys().key1 : ''
+        }
+        {
           name: 'AZURE_COSMOSDB_ENDPOINT'
           value: cosmos.properties.documentEndpoint
         }
@@ -162,12 +167,20 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
           value: 'Conversations'
         }
         {
+          name: 'AZURE_COSMOSDB_AUTH_KEY'
+          value: authMode == 'accessKey' ? cosmos.listKeys().primaryMasterKey : ''
+        }
+        {
           name: 'AZURE_SEARCH_API_ENDPOINT'
           value: !empty(searchName) ? 'https://${search.name}.search.windows.net' : ''
         }
         {
           name: 'AZURE_SEARCH_INDEX'
           value: 'index-name'
+        }
+        {
+          name: 'AZURE_SEARCH_API_KEY'
+          value: authMode == 'accessKey' ? search.listAdminKeys().primaryKey : ''
         }
         {
           name: 'MAX_TURNS'

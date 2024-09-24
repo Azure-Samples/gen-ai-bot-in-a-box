@@ -11,12 +11,13 @@ class AssistantBot extends StateManagementBot {
         super(conversationState, userState, dialog);
         this.deployment = process.env.AZURE_OPENAI_DEPLOYMENT_NAME;
         this.aoaiClient = aoaiClient;
+        this.welcomeMessage = process.env.LLM_WELCOME_MESSAGE || "Hello and welcome to the Chat Completions Bot NodeJS!";
 
         this.onMembersAdded(async (context, next) => {
             const membersAdded = context.activity.membersAdded;
             for (let member of membersAdded) {
                 if (member.id !== context.activity.recipient.id) {
-                    await context.sendActivity("Hello and welcome to the Assistant Bot NodeJS!");
+                    await context.sendActivity(this.welcomeMessage);
                 }
             }
             await next();
