@@ -180,7 +180,7 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'AZURE_SEARCH_API_KEY'
-          value: authMode == 'accessKey' ? search.listAdminKeys().primaryKey : ''
+          value: !empty(searchName) && authMode == 'accessKey' ? search.listAdminKeys().primaryKey : ''
         }
         {
           name: 'MAX_TURNS'
