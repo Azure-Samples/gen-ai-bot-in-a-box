@@ -1,34 +1,27 @@
-$ErrorActionPreference="Stop"
+Write-Host "Loading azd .env file from current environment..."
 
-
-Write-Host "Loading azd .env file from current environment"
-foreach ($line in (& azd env get-values)) {
-    if ($line -match "([^=]+)=(.*)") {
-        $key = $matches[1]
-        $value = $matches[2] -replace '^"|"$'
-	    [Environment]::SetEnvironmentVariable($key, $value)
-    }
+$envValues = azd env get-values
+$envValues.Split("`n") | ForEach-Object {
+    $key, $value = $_.Split('=')
+    $value = $value.Trim('"')
+    Set-Variable -Name $key -Value $value -Scope Global
 }
 
-Write-Output "Switching MSI to Single Tenant mode..."
-
-$AOAI_API_KEY=az cognitiveservices account keys list -n $env:AI_SERVICES_NAME -g $env:AZURE_RESOURCE_GROUP_NAME --query key1 -o tsv
+$OAUTH_TOKEN=$(az account get-access-token --scope https://cognitiveservices.azure.com/.default --query accessToken -o tsv)
 $AOAI_ASSISTANT_NAME="assistant_in_a_box"
-$ASSISTANT_ID=((curl "${env:AI_SERVICES_ENDPOINT}openai/assistants`?api-version=2024-07-01-preview" -H "api-key: $AOAI_API_KEY" | ConvertFrom-Json).data | Where-Object name -eq $AOAI_ASSISTANT_NAME).id
+$ASSISTANT_ID=((curl "${AI_SERVICES_ENDPOINT}openai/assistants`?api-version=2024-07-01-preview" -H "Authorization: Bearer $OAUTH_TOKEN" | ConvertFrom-Json).data | Where-Object name -eq $AOAI_ASSISTANT_NAME).id
 
 if ( $ASSISTANT_ID -eq $null )    
     {
         $ASSISTANT_ID=""
-        echo "empty"
     }
 else
     {
         $ASSISTANT_ID="/$ASSISTANT_ID"
-        echo "not empty"
     }
 
 $TOOLS=""
-Get-ChildItem "./src/Tools" -Filter *.json | 
+Get-ChildItem "assistants_tools" -Filter *.json | 
           Foreach-Object {
               $content = Get-Content $_.FullName
               if ($TOOLS -eq "") {
@@ -40,25 +33,19 @@ Get-ChildItem "./src/Tools" -Filter *.json |
 
 echo "{
     `"name`":`"${AOAI_ASSISTANT_NAME}`",
-    `"model`":`"gpt-4`",
+    `"model`":`"${AOAI_DEPLOYMENT_NAME}`",
     `"instructions`":`"`",
     `"tools`":[
         $TOOLS
     ],
     `"metadata`":{}
   }" | Out-File tmp.json
-curl "${env:AI_SERVICES_ENDPOINT}openai/assistants$ASSISTANT_ID`?api-version=2024-07-01-preview" -H "api-key: $AOAI_API_KEY" -H 'content-type: application/json' -d '@tmp.json'
+curl "${AI_SERVICES_ENDPOINT}openai/assistants$ASSISTANT_ID`?api-version=2024-07-01-preview" -H "Authorization: Bearer $OAUTH_TOKEN" -H 'content-type: application/json' -d '@tmp.json'
 
 rm tmp.json
 
-$ASSISTANT_ID=((curl "${env:AI_SERVICES_ENDPOINT}openai/assistants`?api-version=2024-07-01-preview" -H "api-key: $AOAI_API_KEY" | ConvertFrom-Json).data | Where-Object name -eq $AOAI_ASSISTANT_NAME).id
-if ( $ASSISTANT_ID -eq $null )    
-    {
-        throw "Failed to create assistant"
-    }
-else
-    {
-        echo "Assistant created/updated successfully"
-    }
+$ASSISTANT_ID=((curl "${AI_SERVICES_ENDPOINT}openai/assistants`?api-version=2024-07-01-preview" -H "Authorization: Bearer $OAUTH_TOKEN" | ConvertFrom-Json).data | Where-Object name -eq $AOAI_ASSISTANT_NAME).id
 
-az webapp config appsettings set -g $env:AZURE_RESOURCE_GROUP_NAME -n $env:BACKEND_APP_NAME --settings AZURE_OPENAI_ASSISTANT_ID=$ASSISTANT_ID
+az webapp config appsettings set -g $AZURE_RESOURCE_GROUP_NAME -n $BACKEND_APP_NAME --settings AZURE_OPENAI_ASSISTANT_ID=$ASSISTANT_ID
+
+azd env set AZURE_ASSISTANT_ID $ASSISTANT_ID

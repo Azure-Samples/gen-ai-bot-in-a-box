@@ -1,5 +1,3 @@
-set -e
-
 echo "Loading azd .env file from current environment..."
 
 while IFS='=' read -r key value; do
@@ -10,11 +8,8 @@ $(azd env get-values)
 EOF
 
 if [ "$ENABLE_AUTH" != "true" ]; then
-    echo "Skipping SSO configuration..."
     exit 0
 fi
-
-echo "Setting up SSO"
 
 # If App Registration was not created, create it
 if [ -z "$CLIENT_ID" ]; then

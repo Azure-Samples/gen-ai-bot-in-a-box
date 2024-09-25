@@ -1,5 +1,3 @@
-set -e
-
 echo "Loading azd .env file from current environment..."
 
 while IFS='=' read -r key value; do

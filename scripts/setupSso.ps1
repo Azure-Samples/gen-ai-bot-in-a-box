@@ -7,7 +7,7 @@ $envValues.Split("`n") | ForEach-Object {
     Set-Variable -Name $key -Value $value -Scope Global
 }
 
-if ($envValues["ENABLE_AUTH"] -ne "true") {
+if ($ENABLE_AUTH -ne "true") {
     return
 }
 
@@ -21,9 +21,5 @@ if ( $CLIENT_ID -eq $null )
 
 # Set up authorization for frontend app
 az webapp auth config-version upgrade -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME || true
-az webapp auth update -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME --enabled true \
-    --action RedirectToLoginPage  --redirect-provider azureactivedirectory
-az webapp auth microsoft update -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME \
-    --allowed-token-audiences https://$FRONTEND_APP_NAME.azurewebsites.net/.auth/login/aad/callback \
-    --client-id $CLIENT_ID \
-    --issuer https://sts.windows.net/$AZURE_TENANT_ID/
+az webapp auth update -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME --enabled true --action RedirectToLoginPage  --redirect-provider azureactivedirectory
+az webapp auth microsoft update -g $AZURE_RESOURCE_GROUP_NAME -n $FRONTEND_APP_NAME --allowed-token-audiences https://$FRONTEND_APP_NAME.azurewebsites.net/.auth/login/aad/callback --client-id $CLIENT_ID --issuer https://sts.windows.net/$AZURE_TENANT_ID/
