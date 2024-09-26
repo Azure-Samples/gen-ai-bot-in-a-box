@@ -6,7 +6,7 @@ param msiID string
 param msiClientID string
 param linuxFxVersion string
 param implementation string
-param sku string = 'S1'
+param sku string = 'P0v3'
 param tags object = {}
 param deploymentName string
 param searchName string
@@ -168,7 +168,7 @@ resource backend 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'AZURE_COSMOSDB_AUTH_KEY'
-          value: authMode == 'accessKey' ? cosmos.listKeys().primaryMasterKey : ''
+          value: backendLanguage != 'dotnet' || authMode == 'accessKey' ? cosmos.listKeys().primaryMasterKey : ''
         }
         {
           name: 'AZURE_SEARCH_API_ENDPOINT'

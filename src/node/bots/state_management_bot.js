@@ -18,7 +18,7 @@ class StateManagementBot extends ActivityHandler {
             this.ssoEnabled = false
         }
         this.ssoConfigName = process.env.SSO_CONFIG_NAME || "default"
-        this.streaming = process.env.AZURE_OPENAIthis.streaming || false
+        this.streaming = process.env.AZURE_OPENAI_STREAMING || false
     }
 
     async run(context) {

@@ -54,7 +54,6 @@ param deployAIHub bool = false
 @description('Whether to deploy a sample AI Project')
 param deployAIProject bool = false
 
-
 // Other configurations
 @description('Name of the Bot Service. Automatically generated if left blank')
 param msiName string = ''
@@ -68,12 +67,12 @@ param appName string = ''
 param enableAuthentication bool
 
 @description('Gen AI model name and version to deploy')
-@allowed(['gpt-4,1106-Preview', 'gpt-4,0125-Preview', 'gpt-4o,2024-05-13'])
+@allowed(['gpt-4,1106-Preview', 'gpt-4,0125-Preview', 'gpt-4o,2024-05-13', 'gpt-4o-mini,2024-07-18'])
 param model string
 @description('Tokens per minute capacity for the model. Units of 1000 (capacity = 10 means 10,000 tokens per minute)')
 param modelCapacity int
 @description('Language and version of the app to be deployed')
-@allowed(['python|3.10', 'node|14', 'dotnetcore|8.0'])
+@allowed(['python|3.10', 'node|20-lts', 'dotnetcore|8.0'])
 param stack string
 @description('Chat implementation to be used')
 @allowed(['chat-completions', 'assistant'])
@@ -100,7 +99,9 @@ var names = {
   vnet: '${abbrs.networkVirtualNetworks}${environmentName}-${uniqueSuffix}'
   privateLinkSubnet: '${abbrs.networkVirtualNetworksSubnets}${environmentName}-pl-${uniqueSuffix}'
   appSubnet: '${abbrs.networkVirtualNetworksSubnets}${environmentName}-app-${uniqueSuffix}'
-  aiServices: !empty(aiServicesName) ? aiServicesName : '${abbrs.cognitiveServicesAccounts}${environmentName}-${uniqueSuffix}'
+  aiServices: !empty(aiServicesName)
+    ? aiServicesName
+    : '${abbrs.cognitiveServicesAccounts}${environmentName}-${uniqueSuffix}'
   aiHub: !empty(aiHubName) ? aiHubName : '${abbrs.cognitiveServicesAccounts}hub-${environmentName}-${uniqueSuffix}'
   search: !empty(searchName) ? searchName : '${abbrs.searchSearchServices}${environmentName}-${uniqueSuffix}'
   storage: !empty(storageName)
@@ -109,7 +110,6 @@ var names = {
   keyVault: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVaultVaults}${environmentName}-${uniqueSuffix}'
   computeInstance: '${abbrs.computeVirtualMachines}${environmentName}-${uniqueSuffix}'
 }
-
 
 // Private Network Resources
 var dnsZones = [
@@ -127,12 +127,11 @@ var dnsZones = [
 var dnsZoneIds = publicNetworkAccess == 'Disabled' ? m_dns.outputs.dnsZoneIds : dnsZones
 var privateEndpointSubnetId = publicNetworkAccess == 'Disabled' ? m_network.outputs.privateEndpointSubnetId : ''
 
-
 // Deploy two resource groups
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: names.resourceGroup
   location: location
-  tags: union(tags, {'azd-env-name': environmentName})
+  tags: union(tags, { 'azd-env-name': environmentName })
 }
 
 resource dnsResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = if (publicNetworkAccess == 'Disabled') {
@@ -140,7 +139,6 @@ resource dnsResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = if (
   location: location
   tags: tags
 }
-
 
 // Network module - deploys Vnet
 module m_network 'modules/aistudio/network.bicep' = if (publicNetworkAccess == 'Disabled') {
@@ -190,20 +188,22 @@ module m_aiservices 'modules/aistudio/aiservices.bicep' = {
     openAIPrivateDnsZoneId: dnsZoneIds[0]
     cognitiveServicesPrivateDnsZoneId: dnsZoneIds[1]
     authMode: authMode
-    grantAccessTo: authMode == 'identity' ? [
-      {
-        id: myPrincipalId
-        type: myPrincipalType
-      }
-      {
-        id: m_msi.outputs.msiPrincipalID
-        type: 'ServicePrincipal'
-      }
-      {
-        id: deploySearch ? m_search.outputs.searchPrincipalId : ''
-        type: 'ServicePrincipal'
-      }
-    ] : []
+    grantAccessTo: authMode == 'identity'
+      ? [
+          {
+            id: myPrincipalId
+            type: myPrincipalType
+          }
+          {
+            id: m_msi.outputs.msiPrincipalID
+            type: 'ServicePrincipal'
+          }
+          {
+            id: deploySearch ? m_search.outputs.searchPrincipalId : ''
+            type: 'ServicePrincipal'
+          }
+        ]
+      : []
     allowedIpAddresses: allowedIpAddressesArray
     tags: tags
   }
@@ -230,20 +230,22 @@ module m_sharedPrivateLinks 'modules/aistudio/sharedPrivateLinks.bicep' = if (de
     searchName: names.search
     aiServicesName: m_aiservices.outputs.aiServicesName
     storageName: m_storage.outputs.storageName
-    grantAccessTo: authMode == 'identity' ? [
-      {
-        id: myPrincipalId
-        type: myPrincipalType
-      }
-      {
-        id: m_msi.outputs.msiPrincipalID
-        type: 'ServicePrincipal'
-      }
-      {
-        id: m_aiservices.outputs.aiServicesPrincipalId
-        type: 'ServicePrincipal'
-      }
-    ] : []
+    grantAccessTo: authMode == 'identity'
+      ? [
+          {
+            id: myPrincipalId
+            type: myPrincipalType
+          }
+          {
+            id: m_msi.outputs.msiPrincipalID
+            type: 'ServicePrincipal'
+          }
+          {
+            id: m_aiservices.outputs.aiServicesPrincipalId
+            type: 'ServicePrincipal'
+          }
+        ]
+      : []
   }
 }
 
@@ -258,20 +260,22 @@ module m_storage 'modules/aistudio/storage.bicep' = {
     authMode: authMode
     privateEndpointSubnetId: privateEndpointSubnetId
     privateDnsZoneId: dnsZoneIds[2]
-    grantAccessTo: authMode == 'identity' ? [
-      {
-        id: myPrincipalId
-        type: myPrincipalType
-      }
-      {
-        id: m_msi.outputs.msiPrincipalID
-        type: 'ServicePrincipal'
-      }
-      {
-        id: deploySearch ? m_search.outputs.searchPrincipalId : ''
-        type: 'ServicePrincipal'
-      }
-    ] : []
+    grantAccessTo: authMode == 'identity'
+      ? [
+          {
+            id: myPrincipalId
+            type: myPrincipalType
+          }
+          {
+            id: m_msi.outputs.msiPrincipalID
+            type: 'ServicePrincipal'
+          }
+          {
+            id: deploySearch ? m_search.outputs.searchPrincipalId : ''
+            type: 'ServicePrincipal'
+          }
+        ]
+      : []
     tags: tags
   }
 }
@@ -322,21 +326,23 @@ module m_cosmos 'modules/cosmos.bicep' = {
     privateEndpointSubnetId: privateEndpointSubnetId
     privateDnsZoneId: dnsZoneIds[5]
     allowedIpAddresses: allowedIpAddressesArray
-    authMode: authMode
-    grantAccessTo: authMode == 'identity' ? [
-      {
-        id: myPrincipalId
-        type: myPrincipalType
-      }
-      {
-        id: m_msi.outputs.msiPrincipalID
-        type: 'ServicePrincipal'
-      }
-      {
-        id: deploySearch ? m_search.outputs.searchPrincipalId : ''
-        type: 'ServicePrincipal'
-      }
-    ] : []
+    authMode: startsWith(stack, 'dotnet') ? authMode : 'accessKey'
+    grantAccessTo: authMode == 'identity'
+      ? [
+          {
+            id: myPrincipalId
+            type: myPrincipalType
+          }
+          {
+            id: m_msi.outputs.msiPrincipalID
+            type: 'ServicePrincipal'
+          }
+          {
+            id: deploySearch ? m_search.outputs.searchPrincipalId : ''
+            type: 'ServicePrincipal'
+          }
+        ]
+      : []
     tags: tags
   }
 }

@@ -76,12 +76,13 @@ storage = None
 if os.getenv("AZURE_COSMOSDB_ENDPOINT"):
     storage = CosmosDbPartitionedStorage(
         CosmosDbPartitionedConfig(
+            cosmos_db_endpoint=os.getenv("AZURE_COSMOSDB_ENDPOINT"),
             database_id=os.getenv("AZURE_COSMOSDB_DATABASE_ID"),
             container_id=os.getenv("AZURE_COSMOSDB_CONTAINER_ID"),
             auth_key=os.getenv("AZURE_COSMOSDB_AUTH_KEY"),
         )
     )
-    storage.client = CosmosClient(os.getenv("AZURE_COSMOSDB_ENDPOINT"), credential)
+    # storage.client = CosmosClient(os.getenv("AZURE_COSMOSDB_ENDPOINT"), auth=credential)
 else:
     storage = MemoryStorage()
 

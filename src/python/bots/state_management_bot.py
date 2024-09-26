@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 import os
 import jwt
-from botbuilder.core import ActivityHandler, ConversationState, TurnContext, UserState
+from botbuilder.core import ActivityHandler, ConversationState, TurnContext, UserState, MessageFactory
 from botbuilder.dialogs import Dialog, DialogSet, DialogTurnStatus
 from botframework.connector.auth.user_token_client import UserTokenClient
 
@@ -17,6 +17,7 @@ class StateManagementBot(ActivityHandler):
         self.sso_enabled = os.getenv("SSO_ENABLED", False)
         if (self.sso_enabled == "false"):
             self.sso_enabled = False
+        print(self.sso_enabled)
         self.sso_config_name = os.getenv("SSO_CONFIG_NAME", "default")
 
 
@@ -76,11 +77,9 @@ class StateManagementBot(ActivityHandler):
                 create_activity = await turn_context.sendActivity(interim_message)
                 return create_activity.id
             else:
-                update_message = {
-                    "text": interim_message,
-                    "type": "message",
-                    "id": stream_id
-                }
+                update_message = MessageFactory.text(interim_message)
+                update_message.id = stream_id
+                update_message.type = "message"
                 update_activity = await turn_context.update_activity(update_message)
                 return update_activity.id
         # If we can stream messages, do so
@@ -89,10 +88,8 @@ class StateManagementBot(ActivityHandler):
             "streamSequence": stream_sequence,
             "streamType": "streaming" if stream_type == "typing" else "final"
         }
-        message = {
-            "channel_data": channel_data if stream_supported else None,
-            "text": interim_message,
-            "type": stream_type
-        }
+        message = MessageFactory.text(interim_message)
+        message.channel_data = channel_data if stream_supported else None
+        message.type = stream_type
         activity = await turn_context.send_activity(message)
         return activity.id

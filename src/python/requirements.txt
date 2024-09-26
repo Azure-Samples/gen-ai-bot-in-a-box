@@ -1,6 +1,6 @@
 aiohttp==3.9.5
-azure-core==1.30.2
-azure-identity==1.17.1
+azure-core==1.31.0
+azure-identity==1.18.0
 azure-cosmos==3.2.0
 azure-search==1.0.0b2
 azure-search-documents==11.5.1
@@ -10,4 +10,4 @@ botbuilder-dialogs==4.16.1
 botbuilder-integration-aiohttp==4.16.1
 python-dotenv==1.0.1
 openai==1.41.0
-semantic-kernel==1.8.2
+semantic-kernel==1.9.0

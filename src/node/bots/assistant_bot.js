@@ -136,7 +136,6 @@ class AssistantBot extends StateManagementBot {
         activityId = await this.sendInterimMessage(context, currentMessage, streamSequence, null, "typing")
 
         for await (let event of run.iterator()) {
-            console.log(event)
             if (event.event == "thread.run.created")
                 currentRunId = event.data.id
             if (event.event == "thread.run.failed") {
