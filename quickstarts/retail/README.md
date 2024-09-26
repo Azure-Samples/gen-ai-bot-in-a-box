@@ -59,7 +59,7 @@ Use the following steps to further configure the application for the e-retail sc
 
 1. **System prompt**: Provide the necessary instructions to shape the behavior of the assistant depending on the use case. System messages can be provided in the App Service's (backend) Environment Variables, as shown below:
 
-    ![alt text](image.png)
+    ![System Prompt configuration](../common/system-message.png)
 
     Use the examples below and make adjustments as needed.
 
