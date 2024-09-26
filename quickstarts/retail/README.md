@@ -13,7 +13,7 @@ This solution quickstart provides a boilerplate solution to accelerate the devel
 
 Below is a representation of the solution architecture:
 
-![Solution architecture](./media/architecture.png)
+![System prompt configuration](../common/media/system-message.png)
 
 ## Deployment Guide
 
