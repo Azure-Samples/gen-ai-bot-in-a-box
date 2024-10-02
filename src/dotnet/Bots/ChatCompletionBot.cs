@@ -94,7 +94,7 @@ namespace GenAIBot.Bots
             await ProcessRunStreaming(completion, conversationData, turnContext, cancellationToken);
             // If OYD is enabled, remove image data from history after using it
             var dataSources = completionOptions.GetDataSources();
-            if (!dataSources.IsNull())
+            if (dataSources != null)
             {
                 conversationData.History.RemoveAll(x => x.ImageData != null);
             }
