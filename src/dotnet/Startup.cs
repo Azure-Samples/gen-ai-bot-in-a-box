@@ -124,7 +124,7 @@ namespace GenAIBot
             // Add the Login dialog
             services.AddSingleton<LoginDialog>();
 
-            if (string.IsNullOrEmpty(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")))
+            if (!string.IsNullOrEmpty(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")))
             {
                 var searchApiKey = configuration.GetValue<string>("AZURE_SEARCH_API_KEY");
                 services.AddSingleton(new AzureSearchChatDataSource()
