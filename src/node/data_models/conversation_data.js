@@ -21,6 +21,17 @@ class ConversationData {
             conversationData.history.splice(1, 1);
         }
     }
+
+    static toMessages(conversationHistory) {
+        let messages = conversationHistory.map((turn, index) => ({
+            role: turn.role,
+            tool_calls: turn.tool_calls,
+            content: turn.message
+        }))
+        return messages
+
+    }
+    
 }
 
 module.exports = { ConversationTurn, ConversationData };

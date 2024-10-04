@@ -4,7 +4,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const restify = require('restify');
-const { DefaultAzureCredential, ManagedIdentityCredential } = require('@azure/identity')
+const { DefaultAzureCredential } = require('@azure/identity')
 const {
     CloudAdapter,
     ConfigurationBotFrameworkAuthentication,
@@ -66,12 +66,17 @@ adapter.onTurnError = onTurnErrorHandler;
 const credential = new DefaultAzureCredential();
 
 // Azure AI Services
-const aoaiClient = new AzureOpenAI({
-    baseURL: process.env.AZURE_OPENAI_API_ENDPOINT + '/openai',
-    azureADTokenProvider: () => credential.getToken('https://cognitiveservices.azure.com/.default').then(result => result.token),
-    apiVersion: process.env.AZURE_OPENAI_API_VERSION,
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
-});
+const aoaiClient = process.env.AZURE_OPENAI_API_KEY ?
+    new AzureOpenAI({
+        baseURL: process.env.AZURE_OPENAI_API_ENDPOINT + '/openai',
+        apiVersion: process.env.AZURE_OPENAI_API_VERSION,
+        apiKey: process.env.AZURE_OPENAI_API_KEY,
+    }) :
+    new AzureOpenAI({
+        baseURL: process.env.AZURE_OPENAI_API_ENDPOINT + '/openai',
+        azureADTokenProvider: () => credential.getToken('https://cognitiveservices.azure.com/.default').then(result => result.token),
+        apiVersion: process.env.AZURE_OPENAI_API_VERSION,
+    });
 
 // Conversation history storage
 let storage
