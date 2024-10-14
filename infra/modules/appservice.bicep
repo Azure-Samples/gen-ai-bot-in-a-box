@@ -246,7 +246,7 @@ resource frontend 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'AZURE_OPENAI_API_ENDPOINT'
-          value: aiServices.properties.endpoint
+          value: aiServices.properties.endpoints['OpenAI Realtime API']
         }
         {
           name: 'AZURE_OPENAI_API_VERSION'

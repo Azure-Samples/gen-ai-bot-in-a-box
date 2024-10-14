@@ -4,6 +4,8 @@
 const { MessageFactory, ActionTypes } = require('botbuilder');
 const { ConversationData } = require('../data_models/conversation_data');
 const { StateManagementBot } = require('./state_management_bot');
+const { File } = require('node:buffer');
+const { mimeType } = require('../data_models/mime_type');
 
 class AssistantBot extends StateManagementBot {
 
@@ -45,36 +47,43 @@ class AssistantBot extends StateManagementBot {
                 thread = await this.aoaiClient.beta.threads.retrieve(conversationData.thread_id);
             }
 
+            // Delete thread if user asks
+            if (context.activity.text === 'clear') {
+                await this.aoaiClient.beta.threads.del(conversationData.thread_id);
+                conversationData.thread_id = null;
+                conversationData.attachments = [];
+                conversationData.history = [];
+                await context.sendActivity('Conversation cleared!');
+                return true;
+            }
+
             // Check if this is a file upload and process it
             let fileUploaded = await this.handleFileUploads(context, thread.id, conversationData);
 
-            // Return early if it is
-            if (fileUploaded) {
-                return;
+            // Return early if there is no text in the message
+            if (context.activity.text == null) {
+                return true;
             }
 
             // Check if this is a file upload follow up - user selects a file upload option
-            if (context.activity.text.startsWith("#UPLOAD_FILE")) {
+            if (context.activity.text.startsWith(":")) {
                 // Get upload metadata
-                let metadata = context.activity.text.split("#")
-                let tool = metadata[2]
-                let fileName = metadata[3]
+                let tool = context.activity.text.split(':').pop().trim()
                 // Get file from attachments
-                let attachment = conversationData.attachments.find(a => a.name === fileName)
-                // Add file upload to relevant tool
+                let attachment = conversationData.attachments[conversationData.attachments.length - 1]
+                // Send the file to the assistant
                 let file = await fetch(attachment.url)
-
                 let fileResponse = await this.aoaiClient.files.create({
                     file: new File([await file.blob()], attachment.name),
                     purpose: 'assistants'
                 })
-                // Send the file to the assistant
+                // Add file upload to relevant tool
                 let tools = []
-                if (tool.includes("code_interpreter"))
+                if (tool == "Code Interpreter")
                     tools.push({
                         "type": "code_interpreter"
                     })
-                if (tool.includes("file_search"))
+                if (tool == "File Search")
                     tools.push({
                         "type": "file_search"
                     })
@@ -125,7 +134,7 @@ class AssistantBot extends StateManagementBot {
     }
 
 
-    async processRunStreaming(run, conversationData, context) {
+    async processRunStreaming(run, conversationData, context, streamId = null) {
         // Start streaming response
         let currentMessage = ""
         let toolOutputs = []
@@ -133,7 +142,7 @@ class AssistantBot extends StateManagementBot {
         let activityId = ""
         let streamSequence = 1
 
-        activityId = await this.sendInterimMessage(context, currentMessage, streamSequence, null, "typing")
+        activityId = await this.sendInterimMessage(context, "Typing...", streamSequence, streamId, "typing")
 
         for await (let event of run.iterator()) {
             if (event.event == "thread.run.created")
@@ -157,7 +166,10 @@ class AssistantBot extends StateManagementBot {
                 let deltaBlock = event.data.delta.content[0]
                 if (deltaBlock.type == "text") {
                     currentMessage += event.data.delta.content[0].text.value;
-                    await this.sendInterimMessage(context, currentMessage, ++streamSequence, activityId, "typing")
+                    // Flush content every 50 messages
+                    if (streamSequence % 50 == 0) {
+                        await this.sendInterimMessage(context, currentMessage, ++streamSequence, activityId, "typing")
+                    }
                 } else if (deltaBlock.type == "image_file") {
                     currentMessage += `![${deltaBlock.image_file.file_id}](/api/files/${deltaBlock.image_file.file_id})`
                 }
@@ -171,7 +183,7 @@ class AssistantBot extends StateManagementBot {
                 currentRunId,
                 { tool_outputs: toolOutputs, stream: true }
             )
-            await this.processRunStreaming(newRun, conversationData, context)
+            await this.processRunStreaming(newRun, conversationData, context, activityId)
             return
         }
 
@@ -192,11 +204,14 @@ class AssistantBot extends StateManagementBot {
                     continue;
                 }
                 filesUploaded = true;
+                let downloadUrl = attachment.contentUrl;
+                if (attachment.content && attachment.content.downloadUrl)
+                    downloadUrl = attachment.content.downloadUrl
                 // Add file to attachments in case we need to reference it in Function Calling
                 conversationData.attachments.push({
                     name: attachment.name,
-                    contentType: attachment.contentType,
-                    url: attachment.contentUrl
+                    contentType: mimeType(attachment.name),
+                    url: downloadUrl
                 })
 
                 // Add file upload notice to conversation history, frontend, and assistant
@@ -213,19 +228,14 @@ class AssistantBot extends StateManagementBot {
                 await context.sendActivity(MessageFactory.suggestedActions(
                     [
                         {
-                            title: "Code Interpreter",
+                            title: ":Code Interpreter",
                             type: ActionTypes.ImBack,
-                            value: "#UPLOAD_FILE#code_interpreter#" + attachment.name
+                            value: ":Code Interpreter"
                         },
                         {
-                            title: "File Search",
+                            title: ":File Search",
                             type: ActionTypes.ImBack,
-                            value: "#UPLOAD_FILE#file_search#" + attachment.name
-                        },
-                        {
-                            title: "Both",
-                            type: ActionTypes.ImBack,
-                            value: "#UPLOAD_FILE#code_interpreter,file_search#" + attachment.name
+                            value: ":File Search"
                         }
                     ],
                     "Add to a tool? (ignore if not needed)",

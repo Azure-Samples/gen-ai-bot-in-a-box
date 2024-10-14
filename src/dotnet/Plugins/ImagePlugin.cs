@@ -33,8 +33,8 @@ public class ImagePlugin
 
         var messages = new List<ChatMessage>() {
                 new UserChatMessage(new List<ChatMessageContentPart>(){
-                    ChatMessageContentPart.CreateTextMessageContentPart(query),
-                    ChatMessageContentPart.CreateImageMessageContentPart(binaryData, image.ContentType),
+                    ChatMessageContentPart.CreateTextPart(query),
+                    ChatMessageContentPart.CreateImagePart(binaryData, image.ContentType),
                 })
             };
         var response = await _chatClient.CompleteChatAsync(messages);

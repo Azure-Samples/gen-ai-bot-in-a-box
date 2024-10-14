@@ -1,24 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using System;
-using Azure;
-using Azure.AI.OpenAI;
-using Azure.AI.OpenAI.Chat;
-using Azure.Identity;
-using Azure.Search.Documents.Indexes.Models;
-using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Azure;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
-using Microsoft.Bot.Connector.Authentication;
-using Microsoft.BotBuilderSamples;
-using Microsoft.Extensions.Azure;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Services;
 
 namespace GenAIBot
@@ -33,7 +19,7 @@ namespace GenAIBot
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
+        public async void ConfigureServices(IServiceCollection services)
         {
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", optional: true)
@@ -132,7 +118,6 @@ namespace GenAIBot
                     Endpoint = new Uri(configuration.GetValue<string>("AZURE_SEARCH_API_ENDPOINT")),
                     IndexName = configuration.GetValue<string>("AZURE_SEARCH_INDEX"),
                     Authentication = string.IsNullOrEmpty(searchApiKey) ? DataSourceAuthentication.FromSystemManagedIdentity() : DataSourceAuthentication.FromApiKey(searchApiKey),
-                    RoleInformation = configuration.GetValue<string>("LLM_INSTRUCTIONS")
                 });
             }
 
@@ -140,18 +125,18 @@ namespace GenAIBot
             switch (configuration.GetValue<string>("GEN_AI_IMPLEMENTATION"))
             {
                 case "chat-completions":
-                    services.AddTransient<IBot, Bots.ChatCompletionBot<LoginDialog>>();
+                    services.AddSingleton<IBot, Bots.ChatCompletionBot<LoginDialog>>();
                     break;
                 case "assistant":
-                    services.AddTransient<IBot, Bots.AssistantBot<LoginDialog>>();
+                    services.AddSingleton<IBot, Bots.AssistantBot<LoginDialog>>();
                     break;
                 case "semantic-kernel":
-                    services.AddTransient<IBot, Bots.SemanticKernelBot<LoginDialog>>();
+                    services.AddSingleton<IBot, Bots.SemanticKernelBot<LoginDialog>>();
                     break;
                 case "langchain":
                     throw new Exception("Langchain is not supported in this version.");
                 case "phi":
-                    services.AddTransient<IBot, Bots.PhiBot<LoginDialog>>();
+                    services.AddSingleton<IBot, Bots.PhiBot<LoginDialog>>();
                     break;
                 default:
                     throw new Exception("Invalid engine type");

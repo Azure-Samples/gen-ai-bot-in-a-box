@@ -15,7 +15,7 @@ from openai import AzureOpenAI
 from openai.types.beta.assistant_stream_event import ThreadMessageDelta, ThreadRunRequiresAction, ThreadRunCreated, ThreadRunFailed
 from openai.types.beta.threads import TextDeltaBlock, ImageFileDeltaBlock
 
-from data_models import ConversationData, Attachment
+from data_models import ConversationData, Attachment, mime_type
 from .state_management_bot import StateManagementBot
 
 class AssistantBot(StateManagementBot):
@@ -52,21 +52,28 @@ class AssistantBot(StateManagementBot):
             thread = self.aoai_client.beta.threads.create()
             conversation_data.thread_id = thread.id
 
+        # Delete thread if user asks
+        if turn_context.activity.text == 'clear':
+            self.aoai_client.beta.threads.delete(conversation_data.thread_id)
+            conversation_data.thread_id = None
+            conversation_data.attachments = []
+            conversation_data.history = []
+            await turn_context.send_activity('Conversation cleared!')
+            return True
+                
         # Check if this is a file upload and process it
         files_uploaded = await self.handle_file_uploads(turn_context, conversation_data.thread_id, conversation_data)
         
-        # Return early if it is
-        if (files_uploaded):
+        #  Return early if there is no text in the message
+        if (turn_context.activity.text == None):
             return
     
         # Check if this is a file upload follow up - user selects a file upload option
-        if (turn_context.activity.text.startswith("#UPLOAD_FILE")):
+        if (turn_context.activity.text.startswith(":")):
             # Get upload metadata
-            metadata = turn_context.activity.text.split("#")
-            tool = metadata[2]
-            file_name = metadata[3]
+            tool = turn_context.activity.text.split(':').pop().strip()
             # Get file from attachments
-            attachment = next(filter(lambda a: a.name == file_name, conversation_data.attachments))
+            attachment = conversation_data.attachments[-1]
             # Add file upload to relevant tool
             with urllib.request.urlopen(attachment.url) as f:
                 bytes = io.BytesIO(f.read())
@@ -74,11 +81,11 @@ class AssistantBot(StateManagementBot):
             file_response = self.file_client.create(file=bytes, purpose="assistants")
             # Send the file to the assistant
             tools = []
-            if "code_interpreter" in tool:
+            if tool == "Code Interpreter":
                 tools.append({
                     "type": "code_interpreter"
                 })
-            if "file_search" in tool:
+            if tool == "File Search":
                 tools.append({
                     "type": "file_search"
                 })
@@ -118,14 +125,14 @@ class AssistantBot(StateManagementBot):
 
         return True
 
-    async def process_run_streaming(self, run, conversation_data, turn_context):
+    async def process_run_streaming(self, run, conversation_data, turn_context, stream_id = None):
         # Start streaming response
         current_message = ""
         tool_outputs = []
         current_run_id = ""
         activity_id = ""
         stream_sequence = 1
-        activity_id = await self.send_interim_message(turn_context, "Typing...", stream_sequence, None, "typing")
+        activity_id = await self.send_interim_message(turn_context, "Typing...", stream_sequence, stream_id, "typing")
 
         for event in run:
             if type(event) == ThreadRunFailed:
@@ -146,7 +153,9 @@ class AssistantBot(StateManagementBot):
                 if type(deltaBlock) == TextDeltaBlock:
                     current_message += deltaBlock.text.value
                     stream_sequence += 1
-                    await self.send_interim_message(turn_context, current_message, stream_sequence, activity_id, "typing")
+                    # Flush content every 50 messages
+                    if (stream_sequence % 50 == 0):
+                        await self.send_interim_message(turn_context, current_message, stream_sequence, activity_id, "typing")
 
                 elif type(deltaBlock) == ImageFileDeltaBlock: 
                     current_message += f"![{deltaBlock.image_file.file_id}](/api/files/{deltaBlock.image_file.file_id})"
@@ -154,7 +163,7 @@ class AssistantBot(StateManagementBot):
         # Recursively process the run with the tool outputs
         if len(tool_outputs) > 0:
             new_run = self.aoai_client.beta.threads.runs.submit_tool_outputs(thread_id=conversation_data.thread_id, run_id=current_run_id, tool_outputs=tool_outputs, stream=True)
-            await self.process_run_streaming(new_run, conversation_data, turn_context)
+            await self.process_run_streaming(new_run, conversation_data, turn_context, activity_id)
             return
         response = current_message
 
@@ -175,11 +184,14 @@ class AssistantBot(StateManagementBot):
                 if attachment.content_url == None:
                     continue
                 files_uploaded = True
+                download_url = attachment.content_url
+                if attachment.content and "downloadUrl" in attachment.content:
+                    download_url = attachment.content["downloadUrl"]
                 # Add file to attachments in case we need to reference it in Function Calling
                 conversation_data.attachments.append(Attachment(
                     name = attachment.name,
-                    content_type = attachment.content_type,
-                    url = attachment.content_url
+                    content_type = mime_type(attachment.name),
+                    url = download_url
                 ))
 
                 # Add file upload notice to conversation history, frontend, and assistant
@@ -189,9 +201,8 @@ class AssistantBot(StateManagementBot):
                 # Ask whether to add file to a tool
                 await turn_context.send_activity(MessageFactory.suggested_actions(
                     [
-                        CardAction(title= "Code Interpreter", type= ActionTypes.im_back, value= "#UPLOAD_FILE#code_interpreter#" + attachment.name),
-                        CardAction( title= "File Search", type= ActionTypes.im_back, value= "#UPLOAD_FILE#file_search#" + attachment.name),
-                        CardAction( title= "Both", type= ActionTypes.im_back, value= "#UPLOAD_FILE#code_interpreter,file_search#" + attachment.name)
+                        CardAction(title= ":Code Interpreter", type= ActionTypes.im_back, value= ":Code Interpreter"),
+                        CardAction( title= ":File Search", type= ActionTypes.im_back, value= ":File Search"),
                     ],
                     "Add to a tool? (ignore if not needed)",
                 ))

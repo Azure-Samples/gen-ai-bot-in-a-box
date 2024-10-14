@@ -74,7 +74,7 @@ class StateManagementBot(ActivityHandler):
         # If we can update messages, do so
         if update_supported:
             if stream_id == None:
-                create_activity = await turn_context.sendActivity(interim_message)
+                create_activity = await turn_context.send_activity(interim_message)
                 return create_activity.id
             else:
                 update_message = MessageFactory.text(interim_message)

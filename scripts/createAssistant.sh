@@ -9,6 +9,9 @@ EOF
 
 OAUTH_TOKEN=$(az account get-access-token --scope https://cognitiveservices.azure.com/.default --query accessToken -o tsv)
 AOAI_ASSISTANT_NAME="assistant_in_a_box"
+
+echo $AI_SERVICES_ENDPOINT
+
 ASSISTANT_ID=$(curl "$AI_SERVICES_ENDPOINT/openai/assistants?api-version=2024-07-01-preview" \
   -H "Authorization: Bearer $OAUTH_TOKEN" | \
   jq -r '[.data[] | select( .name == "'$AOAI_ASSISTANT_NAME'")][0] | .id') 

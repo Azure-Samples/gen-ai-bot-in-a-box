@@ -109,7 +109,7 @@ namespace GenAIBot.Bots
             var currentToolName = "";
             var currentToolId = "";
             var currentToolArgs = "";
-            IReadOnlyList<AzureChatCitation> citations = [];
+            IReadOnlyList<ChatCitation> citations = [];
             List<ToolOutput> toolOutputs = new();
             string activityId;
             int streamSequence = 1;
@@ -120,13 +120,13 @@ namespace GenAIBot.Bots
                 if (evt.ToolCallUpdates.Count > 0)
                 {
                     var update = evt.ToolCallUpdates[0];
-                    if (update.Id != null)
+                    if (update.ToolCallId != null)
                     {
                         if (currentToolId != "")
                         {
                             await FlushToolCalls(turnContext, conversationData, toolOutputs, currentToolId, currentToolName, currentToolArgs);
                         }
-                        currentToolId = update.Id;
+                        currentToolId = update.ToolCallId;
                         currentToolName = update.FunctionName;
                         currentToolArgs = "";
                     }
@@ -137,9 +137,9 @@ namespace GenAIBot.Bots
                 {
                     await FlushToolCalls(turnContext, conversationData, toolOutputs, currentToolId, currentToolName, currentToolArgs);
                 }
-                if (evt.GetAzureMessageContext() != null)
+                if (evt.GetMessageContext() != null)
                 {
-                    citations = evt.GetAzureMessageContext().Citations;
+                    citations = evt.GetMessageContext().Citations;
                 }
                 foreach (var messageContentUpdate in evt.ContentUpdate)
                 {
@@ -193,7 +193,7 @@ namespace GenAIBot.Bots
                 response = await new WikipediaPlugin(conversationData, turnContext).GetArticle(arguments["article_name"].ToString());
             }
             toolOutputs.Add(new ToolOutput(currentToolId, response));
-            conversationData.AddTurn("assistant", toolCalls: new List<ChatToolCall>() { ChatToolCall.CreateFunctionToolCall(currentToolId, currentToolName, currentToolArgs) });
+            conversationData.AddTurn("assistant", toolCalls: new List<ChatToolCall>() { ChatToolCall.CreateFunctionToolCall(currentToolId, currentToolName, BinaryData.FromString(currentToolArgs)) });
             conversationData.AddTurn("tool", toolCallId: currentToolId, message: response);
         }
 

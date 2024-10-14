@@ -1,29 +1,30 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Net.Http.Headers;
-using System.Text;
+using System.IO;
 using System.Text.Json.Nodes;
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace GenAIBot.Bots
 {
     public class AssistantBot<T> : StateManagementBot<T> where T : Dialog
     {
+        private readonly string _modelName;
         private readonly string _instructions;
         private readonly string _welcomeMessage;
         private readonly string _assistantId;
         private readonly AssistantClient _assistantClient;
         private readonly ChatClient _chatClient;
-        private readonly FileClient _fileClient;
+        private readonly OpenAIFileClient _fileClient;
         private readonly HttpClient _httpClient;
 
         public AssistantBot(IConfiguration config, ConversationState conversationState, UserState userState, AzureOpenAIClient aoaiClient, HttpClient httpClient, T dialog)
             : base(config, conversationState, userState, dialog)
         {
+            _modelName = config["AZURE_OPENAI_DEPLOYMENT_NAME"];
             _assistantClient = aoaiClient.GetAssistantClient();
-            _chatClient = aoaiClient.GetChatClient(config["AZURE_OPENAI_DEPLOYMENT_NAME"]);
-            _fileClient = aoaiClient.GetFileClient();
+            _chatClient = aoaiClient.GetChatClient(_modelName);
+            _fileClient = aoaiClient.GetOpenAIFileClient();
             _httpClient = httpClient;
 
             _assistantId = config["AZURE_OPENAI_ASSISTANT_ID"];
@@ -75,6 +76,17 @@ namespace GenAIBot.Bots
                 thread = _assistantClient.GetThread(conversationData.ThreadId).Value;
             }
 
+            // Delete thread if user asks
+            if (turnContext.Activity.Text == "clear")
+            {
+                await _assistantClient.DeleteThreadAsync(conversationData.ThreadId);
+                conversationData.ThreadId = null;
+                conversationData.Attachments = [];
+                conversationData.History = [];
+                await turnContext.SendActivityAsync("Conversation cleared!");
+                return true;
+            }
+
             // Check if this is a file upload and process it
             var filesUploaded = await HandleFileUploads(turnContext, thread, conversationData, cancellationToken);
 
@@ -85,30 +97,28 @@ namespace GenAIBot.Bots
             }
 
             // Check if this is a file upload follow up - user selects a file upload option
-            if (turnContext.Activity.Text.StartsWith("#UPLOAD_FILE"))
+            if (turnContext.Activity.Text.StartsWith(":"))
             {
                 // Get upload metadata
-                var metadata = turnContext.Activity.Text.Split("#");
-                var tool = metadata[2];
-                var fileName = metadata[3];
+                var tool = turnContext.Activity.Text.Split(':').Last().Trim();
                 // Get file from attachments
-                var attachment = conversationData.Attachments.Find(a => a.Name == fileName);
-                // Add file upload to relevant tool
+                var attachment = conversationData.Attachments.Last();
+                // Send the file to the assistant
                 var options = new MessageCreationOptions();
                 var stream = await _httpClient.GetStreamAsync(attachment.Url);
                 var fileResponse = await _fileClient.UploadFileAsync(stream, attachment.Name, "assistants");
-                // Send the file to the assistant
+                // Add file upload to relevant tool
                 List<ToolDefinition> tools = new();
-                if (tool.Contains("code_interpreter"))
+                if (tool == "Code Interpreter")
                 {
                     tools.Add(ToolDefinition.CreateCodeInterpreter());
                 }
-                if (tool.Contains("file_search"))
+                if (tool == "File Search")
                 {
                     tools.Add(ToolDefinition.CreateFileSearch());
                 }
                 options.Attachments.Add(new MessageCreationAttachment(tools: tools, fileId: fileResponse.Value.Id));
-                var msg = await _assistantClient.CreateMessageAsync(thread, MessageRole.User, [$"File uploaded: {attachment.Name}"], options);
+                var msg = await _assistantClient.CreateMessageAsync(thread.Id, MessageRole.User, [$"File uploaded: {attachment.Name}"], options);
                 // Send feedback to user
                 await turnContext.SendActivityAsync(MessageFactory.Text($"File added to {tool} successfully!"), cancellationToken);
                 return true;
@@ -117,7 +127,7 @@ namespace GenAIBot.Bots
             conversationData.AddTurn("user", turnContext.Activity.Text);
 
             // Send user message to thread
-            _assistantClient.CreateMessage(thread, MessageRole.User, new List<MessageContent>() { MessageContent.FromText(turnContext.Activity.Text) });
+            _assistantClient.CreateMessage(thread.Id, MessageRole.User, new List<MessageContent>() { MessageContent.FromText(turnContext.Activity.Text) });
 
             // Run thread
             var run = _assistantClient.CreateRunStreamingAsync(
@@ -136,7 +146,7 @@ namespace GenAIBot.Bots
 
         }
 
-        protected async Task ProcessRunStreaming(AsyncCollectionResult<StreamingUpdate> run, ConversationData conversationData, ITurnContext turnContext, CancellationToken cancellationToken)
+        protected async Task ProcessRunStreaming(AsyncCollectionResult<StreamingUpdate> run, ConversationData conversationData, ITurnContext turnContext, CancellationToken cancellationToken, string streamId = null)
         {
             // Start streaming response
             var currentMessage = "";
@@ -144,7 +154,7 @@ namespace GenAIBot.Bots
             ThreadRun currentRun = null;
             string activityId;
             int streamSequence = 1;
-            activityId = await SendInterimMessage(turnContext, "Typing...", streamSequence, null, "typing");
+            activityId = await SendInterimMessage(turnContext, "Typing...", streamSequence, streamId, "typing");
 
             await foreach (StreamingUpdate evt in run)
             {
@@ -191,8 +201,8 @@ namespace GenAIBot.Bots
             // Recursively process the run with the tool outputs
             if (toolOutputs.Count > 0)
             {
-                var newRun = _assistantClient.SubmitToolOutputsToRunStreamingAsync(currentRun, toolOutputs);
-                await ProcessRunStreaming(newRun, conversationData, turnContext, cancellationToken);
+                var newRun = _assistantClient.SubmitToolOutputsToRunStreamingAsync(currentRun.ThreadId, currentRun.Id, toolOutputs);
+                await ProcessRunStreaming(newRun, conversationData, turnContext, cancellationToken, activityId);
                 return;
             }
 
@@ -214,25 +224,30 @@ namespace GenAIBot.Bots
                         continue;
                     }
                     filesUploaded = true;
+                    var downloadUrl = attachment.ContentUrl;
+                    if (attachment.Content != null)
+                    {
+                        var content = (JObject)attachment.Content;
+                        downloadUrl = content.GetValue("downloadUrl").ToString();
+                    }
                     // Add file to attachments in case we need to reference it in Function Calling
                     conversationData.Attachments.Add(new()
                     {
                         Name = attachment.Name,
-                        ContentType = attachment.ContentType,
-                        Url = attachment.ContentUrl
+                        ContentType = MimeType.FromFilename(attachment.Name),
+                        Url = downloadUrl
                     });
 
                     // Add file upload notice to conversation history, frontend, and assistant
                     conversationData.AddTurn("user", $"File uploaded: {attachment.Name}");
                     await turnContext.SendActivityAsync(MessageFactory.Text($"File uploaded: {attachment.Name}"), cancellationToken);
-                    await _assistantClient.CreateMessageAsync(thread, MessageRole.User, [$"File uploaded: {attachment.Name}"]);
+                    await _assistantClient.CreateMessageAsync(thread.Id, MessageRole.User, [$"File uploaded: {attachment.Name}"]);
                     // Ask whether to add file to a tool
                     await turnContext.SendActivityAsync(MessageFactory.SuggestedActions(
                         cardActions:
                         [
-                            new CardAction(title: "Code Interpreter", type: ActionTypes.ImBack, value: "#UPLOAD_FILE#code_interpreter#" + attachment.Name),
-                            new CardAction( title: "File Search", type: ActionTypes.ImBack, value: "#UPLOAD_FILE#file_search#" + attachment.Name),
-                            new CardAction( title: "Both", type: ActionTypes.ImBack, value: "#UPLOAD_FILE#code_interpreter,file_search#" + attachment.Name),
+                            new CardAction(title: ":Code Interpreter", type: ActionTypes.ImBack, value: ":Code Interpreter"),
+                            new CardAction( title: ":File Search", type: ActionTypes.ImBack, value: ":File Search"),
                         ],
                         "Add to a tool? (ignore if not needed)",
                         null,
@@ -254,8 +269,8 @@ namespace GenAIBot.Bots
 
             var messages = new List<ChatMessage>() {
                 new UserChatMessage(new List<ChatMessageContentPart>(){
-                    ChatMessageContentPart.CreateTextMessageContentPart(query),
-                    ChatMessageContentPart.CreateImageMessageContentPart(binaryData, image.ContentType),
+                    ChatMessageContentPart.CreateTextPart(query),
+                    ChatMessageContentPart.CreateImagePart(binaryData, image.ContentType),
                 })
             };
             var response = await _chatClient.CompleteChatAsync(messages);
