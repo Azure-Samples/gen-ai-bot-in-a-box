@@ -3,6 +3,8 @@
 
 const { ActivityHandler } = require('botbuilder');
 const { DialogSet, DialogTurnStatus } = require('botbuilder-dialogs');
+const { jwtDecode } = require('jwt-decode')
+
 
 class StateManagementBot extends ActivityHandler {
     constructor(conversationState, userState, dialog) {
@@ -38,14 +40,16 @@ class StateManagementBot extends ActivityHandler {
         }
 
         const userProfileAccessor = this.userState.createProperty('UserProfile');
-        const userProfile = await userProfileAccessor.get(turnContext, () => ({}));
+        const userProfile = await userProfileAccessor.get(turnContext, {});
 
         const userTokenClient = turnContext.turnState.get(turnContext.adapter.UserTokenClientKey);
 
         try {
             const userToken = await userTokenClient.getUserToken(turnContext.activity.from.id, this.ssoConfigName, turnContext.activity.channelId);
-            const decodedToken = jwt.decode(userToken.token);
+            const decodedToken = jwtDecode(userToken.token);
             userProfile.name = decodedToken.name;
+            userProfile.unique_name = decodedToken.unique_name;
+            userProfile.oid = decodedToken.oid;
             return true;
         } catch (error) {
             const dialogSet = new DialogSet(this.conversationState.createProperty("DialogState"));

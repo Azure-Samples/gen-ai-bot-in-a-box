@@ -36,11 +36,11 @@ class LoginDialog extends ComponentDialog {
         var tokenResponse = stepContext.result;
         if (tokenResponse != null)
         {
-            await stepContext.Context.SendActivityAsync(this.loginSuccessMessage);
+            await stepContext.context.sendActivity(this.loginSuccessMessage);
             return await stepContext.endDialog();
         }
 
-        await stepContext.Context.SendActivityAsync(this.loginFailedMessage);
+        await stepContext.context.sendActivity(this.loginFailedMessage);
         return await stepContext.endDialog();
     }
 }
